@@ -1,0 +1,861 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+  
+    
+    <entry>
+      <title>用 Docker 为 Trojan 客户端添加 HTTP 代理</title>
+      <link href="/2020/03/07/http-proxy-for-trojan-by-docker/"/>
+      <url>/2020/03/07/http-proxy-for-trojan-by-docker/</url>
+      
+        <content type="html"><![CDATA[<p>trojan 是近期热度很大的一个代理软件，本文不打算教大家怎么搭建 torjan，而是描述一下我如何解决使用 trojan 的时候遇到的一些问题。</p><p>我使用 trojan 的主要目的不是为了翻越那个伟大的长城，我笃信专业的事情找专业的人来干，花钱买机场比自己搭建来说省时省力。使用 trojan 主要是为了能够通过它提供的代理隧道来使用 openvpn。OpenVPN Connect 的客户端只支持 HTTP 代理，不支持 socks5，而 trojan 默认只支持 socks5 代理，所以必须做一层转换，将 socks5 代理协议转换成 HTTP 代理协议。</p><span id="more"></span><p>我用的办法是 privoxy，而为了使用的方便，我将 trojan 的客户端和 privoxy 打包进了 docker 镜像中。好处就是无论在什么环境，只要是执行一句 <code>docker run</code> 指令就可快速的拉起一个既支持 socks5 又支持 HTTP 协议的代理客户端。</p><p>而且现在这种新冠疫情下，大部分时间都是在家工作，家里大大小小的设备一堆，给每个设备都部署 trojan 非常麻烦。所以用 docker 在家里的 NAS 上部署一个 trojan 然后所有设备都共享这个代理，就方便了很多。</p><p>实现的方法很简单，我是在一个 ubuntu 的基础镜像之上安装了 privoxy 来提供 HTTP 代理服务，然后从 github 官方项目下载 最新版的 trojan 客户端。提供一个脚本来启动这两个应用，而在脚本中提供了可以通过环境变量来设置 trojan 的基本配置参数。</p><p>使用的方法很简单，可以通过下面的命令来快速的启动：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">docker run \</span><br><span class="line">    --name trojan-proxy \</span><br><span class="line">    -e REMOTE_ADDR=<span class="string">&quot;your host&quot;</span> \</span><br><span class="line">    -e PASSWORD=<span class="string">&quot;your password&quot;</span> \</span><br><span class="line">    -p trojan_port:1086 \</span><br><span class="line">    -p privoxy_port:1087 \</span><br><span class="line">    -d \</span><br><span class="line">    andyzhshg/trojan-privoxy:latest</span><br></pre></td></tr></table></figure><p>其中参数环境变量 <code>REMOTE_ADDR</code> 用于指定 trojan 的服务地址，而 <code>PASSWORD</code> 用于指定服务的密码。</p><p>1086 端口是 socks5 代理的端口， 1087 是 HTTP 代理的端口，可以根据需要用 <code>-p</code> 指令映射成宿主机的端口。</p><p>基本上就是这么简单，如果你想指定更多的参数，我这里并没有提供相应的支持，但是你可以通过 fork 并修改我的项目来快速的得到你想要的结果：</p><p><a href="https://github.com/andyzhshg/trojan-privoxy">https://github.com/andyzhshg/trojan-privoxy</a></p><p>docker hub 上的地址为：</p><p><a href="https://hub.docker.com/r/andyzhshg/trojan-privoxy">https://hub.docker.com/r/andyzhshg/trojan-privoxy</a></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> Docker </tag>
+            
+            <tag> VPN </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>cmake_dependent_option 详解</title>
+      <link href="/2019/12/12/cmake_dependent_option/"/>
+      <url>/2019/12/12/cmake_dependent_option/</url>
+      
+        <content type="html"><![CDATA[<p><code>cmake_dependent_option</code> 可以说是一个理解起来十分头疼的一条 cmake 命令了。我们先看看 <a href="https://cmake.org/cmake/help/v3.5/module/CMakeDependentOption.html">cmake 的文档是怎么说的：</a></p><blockquote><p>Macro to provide an option dependent on other options.</p><p>This macro presents an option to the user only if a set of other conditions are true. When the option is not presented a default value is used, but any value set by the user is preserved for when the option is presented again. Example invocation:</p><figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">CMAKE_DEPENDENT_OPTION(USE_FOO <span class="string">&quot;Use Foo&quot;</span> <span class="keyword">ON</span></span><br><span class="line">                       <span class="string">&quot;USE_BAR;NOT USE_ZOT&quot;</span> <span class="keyword">OFF</span>)</span><br></pre></td></tr></table></figure><p>If USE_BAR is true and USE_ZOT is false, this provides an option called USE_FOO that defaults to ON. Otherwise, it sets USE_FOO to OFF. If the status of USE_BAR or USE_ZOT ever changes, any value for the USE_FOO option is saved so that when the option is re-enabled it retains its old value.</p></blockquote><span id="more"></span><p>这段英文绕来绕去，越看越头疼，我就不按原文翻译了，只说一下我的理解。我先把这个命令的具体形式再重复一下：</p><figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cmake_dependent_option(OPT_VAR <span class="string">&quot;OPT_VAR_DES&quot;</span> DEF_VAL_1 <span class="string">&quot;CONDITION_EXP&quot;</span> DEF_VAR_2)</span><br></pre></td></tr></table></figure><p>这个命令带有 5 个参数:</p><ol><li>OPT_VAR</li><li>OPT_VAR_DES</li><li>DEF_VAL_1</li><li>CONDITION_EXP</li><li>DEF_VAR_2</li></ol><p><code>cmake_dependent_option</code>的目的是要定义一个<code>option</code>，这个 <code>option</code> 就是 <code>OPT_VAR</code>，这个 <code>option</code> 的描述是 <code>OPT_VAR_DES</code>，这个 <code>option</code> 的默认值不是常量，而是 <code>DEF_VAL_1</code> 或者 <code>DEF_VAL_2</code>（<code>DEF_VAL_1</code>和<code>DEF_VAL_2</code>不同，但只能是<code>ON</code>或者<code>OFF</code>之一），具体是哪一个，取决于表达式 <code>CONDITION_EXP</code>，如果表达式 <code>CONDITION_EXP</code> 为 <code>true</code>，则默认值是 <code>DEF_VAL_1</code>，如果表达式 <code>CONDITION_EXP</code> 为 <code>false</code>，则默认值是 <code>DEF_VAL_2</code>。</p><p>如果我们把这个命令自己来实现一把的话，可能要需要下面这一大段代码：</p><figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span>(CONDITION_EXP)</span><br><span class="line"><span class="keyword">set</span>(OPT_VAR_DEF DEF_VAL_1)</span><br><span class="line"><span class="keyword">else</span>()</span><br><span class="line"><span class="keyword">set</span>(OPT_VAR_DEF DEF_VAL_2)</span><br><span class="line"><span class="keyword">endif</span>()</span><br><span class="line"></span><br><span class="line"><span class="keyword">option</span>(OPT_VAR <span class="string">&quot;OPT_VAR_DES&quot;</span> OPT_VAR_DEF)</span><br></pre></td></tr></table></figure><p>使用 <code>cmake_dependent_option</code>的时候需要导入<code>CMakeDependentOption</code>这个模块，也就是需要包含下面的语句：</p><figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">include</span>(CMakeDependentOption)</span><br></pre></td></tr></table></figure><p>否则会出现类似 <code>Unknown CMake command &quot;cmake_dependent_option&quot;.</code>的报错。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> C++ </tag>
+            
+            <tag> cmake </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>用 AppleScript 一键自动处理选中的文本</title>
+      <link href="/2019/07/24/text-process-by-apple-script/"/>
+      <url>/2019/07/24/text-process-by-apple-script/</url>
+      
+        <content type="html"><![CDATA[<p>这篇文章提到的方法是为了解决我在工作中遇到的一个实际问题，问题大概是这个样子的：</p><p>我的一个服务程序使用 <code>golang</code> 写的，其中的日志用了<a href="https://github.com/sirupsen/logrus"><code>logrus</code></a> 这个库，这个库本身很好用，但是我碰到一个问题 ，就是我的 log 中有一些数据本身就是以 json 格式输出的，但是 logrus 在日志文件中会默认的给输出中的双引号转义，最后看到的日志大概是这个样子的：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">time=&quot;2019-07-24T10:39:06Z&quot; level=info msg=&quot;[Out] &#123;\&quot;id\&quot;:257944,\&quot;type\&quot;:1,\&quot;timestamp\&quot;:1563964746233023125,\&quot;offer_id\&quot;:741807,\&quot;status\&quot;:&#123;\&quot;code\&quot;:0,\&quot;message\&quot;:\&quot;ok\&quot;&#125;,\&quot;data\&quot;:&#123;\&quot;symbol\&quot;:4,\&quot;topic\&quot;:\&quot;rest2engine_12_13\&quot;&#125;&#125;&quot;</span><br><span class="line">time=&quot;2019-07-24T10:39:06Z&quot; level=info msg=&quot;[Out] &#123;\&quot;id\&quot;:257945,\&quot;type\&quot;:3,\&quot;timestamp\&quot;:1563964746233044370,\&quot;trigger\&quot;:&#123;\&quot;id\&quot;:741807,\&quot;is_bid\&quot;:false,\&quot;amount\&quot;:\&quot;4380000000\&quot;,\&quot;clear\&quot;:true,\&quot;balance\&quot;:\&quot;0\&quot;,\&quot;data\&quot;:&#123;\&quot;symbol\&quot;:4,\&quot;topic\&quot;:\&quot;rest2engine_12_13\&quot;&#125;&#125;,\&quot;match\&quot;:[&#123;\&quot;id\&quot;:740840,\&quot;price\&quot;:\&quot;2074400000000\&quot;,\&quot;amount\&quot;:\&quot;1940000000\&quot;,\&quot;clear\&quot;:true,\&quot;balance\&quot;:\&quot;0\&quot;,\&quot;data\&quot;:&#123;\&quot;symbol\&quot;:4,\&quot;topic\&quot;:\&quot;rest2engine_12_13\&quot;&#125;&#125;,&#123;\&quot;id\&quot;:741724,\&quot;price\&quot;:\&quot;2074400000000\&quot;,\&quot;amount\&quot;:\&quot;2440000000\&quot;,\&quot;clear\&quot;:false,\&quot;balance\&quot;:\&quot;10735020000000000000000\&quot;,\&quot;data\&quot;:&#123;\&quot;symbol\&quot;:4,\&quot;topic\&quot;:\&quot;rest2engine_12_13\&quot;&#125;&#125;],\&quot;status\&quot;:&#123;\&quot;code\&quot;:0,\&quot;message\&quot;:\&quot;ok\&quot;&#125;&#125;&quot;</span><br></pre></td></tr></table></figure><p>一般情况下，需要人肉去读这些日志的时候我会把 json 数据拷贝出来粘贴到一个可以格式化 json 的编辑器中。但是因为这个带了转义符号的数据已经不是合法的 json 了，所以 json 编辑器是无法直接处理的。</p><p>我已开始的做法是把数据拷贝到文本编辑器中，然后通过全局替换的方式把转义字符替换掉，即用 <code>&quot;</code> 替换 <code>\&quot;</code> 。这种方式其实在我这个场景工作的很好，只是比较麻烦，每次都要通过文本编辑器全局替换一次。</p><p>那么有没有更加有效率的方式呢？一开始我是想到可以自己写一个小程序专门的来处理这个替换过程，不过每次都需要调用小程序，比贴到文本编辑器全局替换也省不了时间。然后我就突然想到了是不是可以用 mac 的自动操作 Apple Script 来完成这件事，能想到这个是因为我之前在一篇文章里学到过通过 Apple Script 添加 VS Code 的右键菜单。</p><span id="more"></span><p>其实所谓的 Apple Script 基本上是不需要自己动手写代码的，只需要在图形化的编辑器里拖一拖选项就大致可以完成工作了。我的最终的成果就是可以在终端选中一段数据，然后通过右键选择我编写好的脚本动作，就把选中的文字做全局替换，然后将 json格式化，并且拷贝进剪贴板，查看的时候只需要在文本编辑器 cmd+v 将剪贴板的内容粘贴即可。比起之前的流程，简直是舒服了太多。</p><p>以下是 Apple Script 的制作过程：</p><ol><li><p>打开 <code>自动操作</code> 程序</p><p><img src="http://s3.up4dev.com:38080/blog/text-process-by-apple-script/tpbas-1.png"></p></li><li><p>选 <code>新建文稿</code>，文稿类型为 <code>快速操作</code></p><p><img src="http://s3.up4dev.com:38080/blog/text-process-by-apple-script/tpbas-2.png"></p></li><li><p>在搜索栏搜索 <code>shell</code> ，选择 <code>运行 shell 脚本</code> 组件，拖入工作区，并填入 <code>sed &#39;s/\\\&quot;/\&quot;/g&#39; | /usr/local/bin/jq</code> 作为脚本内容。</p><p><img src="http://s3.up4dev.com:38080/blog/text-process-by-apple-script/tpbas-3.png"></p></li><li><p>在搜索栏搜索 <code>剪贴板</code>，选择 <code>拷贝至剪贴板</code> 组件，拖入工作区。</p><p><img src="http://s3.up4dev.com:38080/blog/text-process-by-apple-script/tpbas-4.png"></p></li><li><p>保存脚本，比如我命名为 <code>Logrus Trans</code></p></li><li><p>至此脚本就编写完成了，使用的效果大概是这样的</p><p><img src="http://s3.up4dev.com:38080/blog/text-process-by-apple-script/tpbas-5.png"></p></li></ol><p>可能需要解释以下的是步骤 3 中的这段脚本： <code>sed &#39;s/\\\&quot;/\&quot;/g&#39; | /usr/local/bin/jq</code> </p><p>这是一个用管道串联起来的字符流处理，实际上 <code>sed</code> 之前是 AppleScript 传递过来的字符流，也就是我们选中的文本，<code>sed &#39;s/\\\&quot;/\&quot;/g&#39;</code> 会将文本中的 <code>&quot;</code> 替换成 <code>\&quot;</code> ，<code>/usr/local/bin/jq </code> 则将传递过来的文本中的 json 进行格式化。</p><p>步骤 4 会将步骤 3 的输出的文本拷贝到剪贴板中，这样在使用的时候直接用 <code>cmd + v</code> 粘贴到需要的地方就可以了。</p><p>这个例子是一个特例，其他人大概不会用到一模一样的情境，不过这里提供了一种思路，可以利用 AppleScript 快捷的处理繁复的工作。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> mac </tag>
+            
+            <tag> osx </tag>
+            
+            <tag> AppleScript </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>利用 dns 负载均衡提高宽带多拨状态下的上行并发能力</title>
+      <link href="/2019/07/23/dns-load-balance/"/>
+      <url>/2019/07/23/dns-load-balance/</url>
+      
+        <content type="html"><![CDATA[<p>终于如愿以偿的用上了软路由。体验到了飞一般的 $$ 速度，也体会到了单线多拨的好处，我电信宽带 100M 小水管 4 拨之后瞬时变成了大几百M的高速公路。</p><p>多拨的另外一个副产品就是一下子多了几个公网 IP，我想到有没有办法用上这几条多拨出来的线路，来提高家庭宽带的上行带宽呢？毕竟每条线路只有30M的上行带宽，在外边有多个终端连接进来时，可以并发的使用这些线路来提高负载能力。</p><span id="more"></span><p>koolshare 的改版 LEDE 中自带了一个软件中心，其中有一个很有用的插件 <code>koolddns</code>，可以用它来实现动态 dsn 绑定。并且在多拨的情况下，可以根据虚拟网卡来指定不同的 wan 口绑定到不同的域名。</p><p>我将我的四条线路分别绑定到 4 个不同的域名：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">wan0 --&gt; a0.xxx.com</span><br><span class="line">wan1 --&gt; a1.xxx.com</span><br><span class="line">wan2 --&gt; a2.xxx.com</span><br><span class="line">wan3 --&gt; a3.xxx.com</span><br></pre></td></tr></table></figure><p>这样我们就有了 4 个指向了不同 IP 的域名，而这 4 个 IP 都指向我们的路由器出口。在路由器后面我有一系列的机器，最主要的就是运行了各种网络服务的 NAS。</p><p>为了访问方便，我给重要的服务都申请了单独的子域名，比如：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">git.xxx.com</span><br><span class="line">nas.xxx.com</span><br><span class="line">db.xxx.com</span><br><span class="line">......</span><br></pre></td></tr></table></figure><p>以前没有多拨的时候我是直接通过 DDNS 把这些域名绑定到动态的宽带 IP 上，那么现在有了 4 条线路，该怎么绑定才可以让外边访问这些服务的时候访问不同的线路呢？</p><p>DNS的解析服务提供了给一个域名配置多条解析记录的功能 (我用的阿里云的解析服务，其他服务商可以自行查阅服务商的文档)。在配置了多条解析记录后，不同的终端访问该域名，域名服务商会将域名随机的解析到一个 IP 上，这就达到了一个负载均衡的效果。</p><p><code>koolddns</code> 是不支持将多个 wan 口的 IP 设置到一个相同的域名的，所以我们上边为每个 wan 口设置了一个单独的域名。剩下的工作我们在域名解析服务上的后台来配置。</p><p>比如我要解析 <code>git.xxx.com</code> 这个域名，我需要在域名配置后台设置 4 条 cname 解析记录：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">git  --cname--&gt; a0.xxx.com</span><br><span class="line">git  --cname--&gt; a1.xxx.com</span><br><span class="line">git  --cname--&gt; a2.xxx.com</span><br><span class="line">git  --cname--&gt; a3.xxx.com</span><br></pre></td></tr></table></figure><p>这样，当访问 <code>git.xxx.com</code> 的时候，会随机的解析到 <code>a0-a3</code>之中的一个 cname 域名，进而指向一个特定的 wan 口的 IP。</p><p>这种方式对于单一终端访问的带宽是没有提升的，因为一次只能连接一条线路，单条线路的带宽是固定的；但是对于多终端并发访问却是有提升的，因为不同的终端会分配不同的线路，多条线路之间的带宽是互不影响的。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> DNS </tag>
+            
+            <tag> LEDE </tag>
+            
+            <tag> koolshare </tag>
+            
+            <tag> 多拨 </tag>
+            
+            <tag> DDNS </tag>
+            
+            <tag> OpenWRT </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>将 K8S 的 dashboard 语言强制设置为英文</title>
+      <link href="/2019/06/11/k8s-dashboard-force-english/"/>
+      <url>/2019/06/11/k8s-dashboard-force-english/</url>
+      
+        <content type="html"><![CDATA[<p><em>Kubernetes Web UI</em> 默认的配置下语言会跟着浏览器的语言走，也就是说你的浏览器语言是中文的话，面板的语言默认也是中文，并且无法通过面板上的设置来选择语言。大多数时候当然是母语最适合用户，但是像 <code>k8s</code> 这种系统，网上查到的资料大都是英文的，所以反倒是看到对应的中文术语的时候会让人愣一下，反应下这个中文对应的英文术语是什么。所以我个人更倾向将开发工具都默认设置为英文，很多情况下这反倒是提高了我的工作效率。</p><p>既然 <code>k8s</code> 的面板默认没有提供语言的选择，有没有办法来切换呢？</p><span id="more"></span><p>在网上搜索了一番，貌似都没有特别成熟或者方便的办法，下面这个网址算是一个解决办法：</p><p><a href="https://jimmysong.io/kubernetes-handbook/practice/dashboard-upgrade.html">https://jimmysong.io/kubernetes-handbook/practice/dashboard-upgrade.html</a></p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">设置界面的语言</span><br><span class="line"></span><br><span class="line">我们看到现在 dashboard 的页面都已经被汉化了，当前支持英文、中文简体、中文繁体、日语，根据浏览器的语言自动切换的。如果想要强制设置 dashboard 中显示的语言，需要在 dahsboard 的 Deployment yaml 配置中增加如下配置：</span><br><span class="line"></span><br><span class="line">env:</span><br><span class="line">  - name: ACCEPT_LANGUAGE</span><br><span class="line">    value: english</span><br><span class="line">更简单的方式是，如果您使用的Chrome浏览器，则在浏览器中的配置中设置语言的顺序后刷新网页，dashboard将以您在Chrome中配置的首选语言显示。</span><br></pre></td></tr></table></figure><p>可以说是两种方法：一种是部署 <code>dashboard</code> 的时候强制指定为英文，也就是说会无视用户浏览器的语言配置，默认都返回英文的页面；另一种是设置浏览器的语言，将浏览器的语言设置为英文即可。</p><p>两种方法都有弊端，前者我们必须有 <code>k8s dashboard</code> 的部署控制权，这在很多时候是不可能的，另外，这也剥夺了用户使用本地化语言的权力；后者的话会导致浏览器请求所有的网页都按照英文来请求，这也不是我们所期待的。</p><p>有没有办法能够只让 <code>k8s dashboard</code> 请求英文网页，而不影响其他网站呢，经过一番研究我找到了一个相对不算特别复杂的方法。</p><p>首先安装一个 chrome 插件：<a href="https://chrome.google.com/webstore/detail/locale-switcher/kngfjpghaokedippaapkfihdlmmlafcc">Locale Switcher</a>。打开 <code>k8s dashboard</code> 可以通过点击插件图标来切换语言，选择英文即可。</p><p>不过这个插件默认是全局生效的，所以一但点击英文，所有的网站请求都会默认有限请求英文的网站。虽然可以通过点击中文来切换回来，比起到浏览器的语言设置里修改语言已经简单了许多。但是毕竟我们不想总是这样的手工控制语言切换。</p><p>其实chrome是可以指定插件可以生效的网站范围的，右键点击插件图标，选择<code>管理扩展程序</code>就会跳转到插件的管理页面，会看到一个条目是 <code>有权访问的网站</code>  ，在此条目下选择 <code>在特定网站上</code> ，并在下面填写你的 <code>k8s dashboard</code> 个地址，形如 <code>https://your-host:port/*</code> (注意 <code>*</code>)。</p><p>这样将插件选择成英文后，再次刷新你的 <code>k8s dashboard</code> 页面时，语言就默认是英文了，而其他网站的语言设置却不受插件的影响，如果你嫌插件的图标占地方，甚至可以选择隐藏图标，因为大概率你以后不需要再点击这个图标了。</p><p>当然，这个方法也支持将其他网站的请求语言设置为不同的语言，不仅限于 <code>k8s dashboard</code> 。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> docker </tag>
+            
+            <tag> k8s </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>一个用 etcd 作主备锁的细节问题</title>
+      <link href="/2019/05/29/etcd-mutex-lock/"/>
+      <url>/2019/05/29/etcd-mutex-lock/</url>
+      
+        <content type="html"><![CDATA[<p><code>etcd</code> 越来越多的被应用在分布式系统中，最典型的一个应用场景就是作为分布式锁，用于在分布式系统中保证资源的独占。</p><p>通常的分布式的锁的应用场景有如下几种方式：</p><ol><li>即用即申请，用完即释放，一般用于资源控制粒度比较细的系统，这种场景会频繁的调用 <code>etcd</code> 服务</li><li>还有一种就是先到先得，得到即长期占有，这种更多是用在主备系统的切换场景，如果占有锁的服务不发生异常，则不会主动与 <code>etcd</code> 交互。</li></ol><p>本文主要讨论第2种场景中遇到的一个细节问题。</p><span id="more"></span><p>在主备切换的场景，我们希望服务一旦获取到锁，就不必主动的与 <code>etcd</code> 交互，而是专心的进行自己的本职工作。但是如果不主动跟 <code>etcd</code> 询问持有的锁的状态的话，我们又无法保证当前是确实持有锁的。正如下边的代码：</p><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line"><span class="string">&quot;context&quot;</span></span><br><span class="line"><span class="string">&quot;fmt&quot;</span></span><br><span class="line"><span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="string">&quot;go.etcd.io/etcd/clientv3&quot;</span></span><br><span class="line"><span class="string">&quot;go.etcd.io/etcd/clientv3/concurrency&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">client, errClient := clientv3.New(clientv3.Config&#123;Endpoints: []<span class="type">string</span>&#123;<span class="string">&quot;http://127.0.0.1:2379&quot;</span>&#125;, DialTimeout: <span class="number">10</span> * time.Second&#125;)</span><br><span class="line"><span class="keyword">if</span> errClient != <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;client create fail - %v&quot;</span>, errClient)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line">session, errSession := concurrency.NewSession(client, concurrency.WithTTL(<span class="number">10</span>))</span><br><span class="line"><span class="keyword">if</span> errSession != <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;create session fail - %v&quot;</span>, errSession)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">mutex := concurrency.NewMutex(session, <span class="string">&quot;/lock&quot;</span>)</span><br><span class="line"><span class="keyword">if</span> mutex == <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;create mutex fail&quot;</span>)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line">errMutex := mutex.Lock(context.TODO())</span><br><span class="line"><span class="keyword">if</span> errMutex != <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;lock fail - %v&quot;</span>, errMutex)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fmt.Println(<span class="string">&quot;got lock, begin run work&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line"><span class="comment">// do real work here</span></span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line"><span class="comment">// prevent progress quit</span></span><br><span class="line"><span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure><p>在 <code>// do real work here</code> 执行过程中，很可能我们的网络状态出现了问题，或者 <code>etcd</code> 服务出现问题导致程序已经跟网络断开，这时实际上锁很可能已经失效了。为了保证锁的有效性，我们可以在<code>session</code>的有效期内轮询锁的状态，但是这种做法很繁琐，也比较浪费资源。有没有更好的方式呢？</p><p>好在 <code>session</code> 提供了一个 <code>Done</code> 方法，该方法返回一个 <code>channel</code> ， 一旦 <code>session</code> 结束，这个 <code>channel</code> 就会被写入内容，这样就给了我们一个简单地方法来监控锁的状态。</p><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line"><span class="string">&quot;context&quot;</span></span><br><span class="line"><span class="string">&quot;fmt&quot;</span></span><br><span class="line"><span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="string">&quot;go.etcd.io/etcd/clientv3&quot;</span></span><br><span class="line"><span class="string">&quot;go.etcd.io/etcd/clientv3/concurrency&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">client, errClient := clientv3.New(clientv3.Config&#123;Endpoints: []<span class="type">string</span>&#123;<span class="string">&quot;http://127.0.0.1:2379&quot;</span>&#125;, DialTimeout: <span class="number">10</span> * time.Second&#125;)</span><br><span class="line"><span class="keyword">if</span> errClient != <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;client create fail - %v&quot;</span>, errClient)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line">session, errSession := concurrency.NewSession(client, concurrency.WithTTL(<span class="number">10</span>))</span><br><span class="line"><span class="keyword">if</span> errSession != <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;create session fail - %v&quot;</span>, errSession)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">mutex := concurrency.NewMutex(session, <span class="string">&quot;/lock&quot;</span>)</span><br><span class="line"><span class="keyword">if</span> mutex == <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;create mutex fail&quot;</span>)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line">errMutex := mutex.Lock(context.TODO())</span><br><span class="line"><span class="keyword">if</span> errMutex != <span class="literal">nil</span> &#123;</span><br><span class="line">fmt.Errorf(<span class="string">&quot;lock fail - %v&quot;</span>, errMutex)</span><br><span class="line"><span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">fmt.Println(<span class="string">&quot;got lock, begin run work&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line"><span class="keyword">select</span> &#123;</span><br><span class="line"><span class="keyword">case</span> &lt;-session.Done():</span><br><span class="line"><span class="comment">// do what ever you want to process lock lost</span></span><br><span class="line">fmt.Println(<span class="string">&quot;lock lost&quot;</span>)</span><br><span class="line">&#125;</span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line"><span class="comment">// do real work</span></span><br><span class="line">&#125;()</span><br><span class="line"></span><br><span class="line"><span class="comment">// prevent progress quit</span></span><br><span class="line"><span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>如上边的代码所示，我们在一个 <code>goroutine</code> 中监听一个 <code>&lt;-session.Done()</code> 的 <code>channel</code> ，这样，一旦锁出现了问题，就会得到通知，这样就可以在这里进行一些锁丢失的善后工作，比如在这里停止所有的需要锁才能进行的工作，这样就不会出现锁已经失效，但是工作进程却全然不知的状况了。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> etcd </tag>
+            
+            <tag> go </tag>
+            
+            <tag> 分布式 </tag>
+            
+            <tag> 锁 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>一个让go的exec支持管道的小窍门</title>
+      <link href="/2019/05/16/go-exec-pipeline-support-trick/"/>
+      <url>/2019/05/16/go-exec-pipeline-support-trick/</url>
+      
+        <content type="html"><![CDATA[<p>最近在一个 <code>golang</code> 开发的项目中需要用 <code>exec</code> 库调用外部 <code>shell</code> 命令，这个命令中用到了管道(<code>pipline</code>)。</p><p>由于是第一次用 <code>exec</code> 库，我想当然的把代码写成了这个样子：</p><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;fmt&quot;</span></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;os/exec&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    cmdStr := fmt.Sprintf(<span class="string">&quot;ls -l %s | head -n %d&quot;</span>, <span class="string">&quot;.&quot;</span>, <span class="number">10</span>)</span><br><span class="line">    cmd := exec.Command(cmdStr)</span><br><span class="line">    <span class="keyword">if</span> out, err := cmd.CombinedOutput(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">        fmt.Errorf(<span class="string">&quot;Error: %v\n&quot;</span>, err)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        fmt.Printf(<span class="string">&quot;Success: %s\n%s\n&quot;</span>, cmdStr, out)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>运行的时候发现这段代码是不能正确的工作的，经过在网上一通搜索后，发现网上给出的方案大致都是这个样子的：<a href="https://stackoverflow.com/questions/10781516/how-to-pipe-several-commands-in-go">https://stackoverflow.com/questions/10781516/how-to-pipe-several-commands-in-go</a>。这种方案确实是解决了问题，但是看起来却十分的复杂，我只是想调用一句 <code>shell</code> 命令而已，却要多写上十几行的 <code>go</code> 代码。</p><p>有没有更简单的方法呢？既然 <code>go</code> 自身处理不了，是否可以用 <code>go</code> 之外的工具来解决呢？</p><span id="more"></span><p>然后就有了这个曲线救国的方案，<code>exec</code> 不再直接执行这个带有管道的命令，而是执行 <code>sh</code> 命令，然后我们的带有管道的 <code>shell</code> 命令作为参数传给 <code>sh</code> 来运行，类似于：</p><figure class="highlight sh"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh -c <span class="string">&quot;ls -l . | head -n 10&quot;</span></span><br></pre></td></tr></table></figure><p>至此，问题迎刃而解，比网上找到的方案简单了很多。落实到 <code>go</code> 代码大概就是下面的样子：</p><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;fmt&quot;</span></span><br><span class="line"><span class="keyword">import</span> <span class="string">&quot;os/exec&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    cmdStr := fmt.Sprintf(<span class="string">&quot;ls -l %s | head -n %d&quot;</span>, <span class="string">&quot;.&quot;</span>, <span class="number">10</span>)</span><br><span class="line">    cmd := exec.Command(<span class="string">&quot;sh&quot;</span>, <span class="string">&quot;-c&quot;</span>, cmdStr)</span><br><span class="line">    <span class="keyword">if</span> out, err := cmd.CombinedOutput(); err != <span class="literal">nil</span> &#123;</span><br><span class="line">        fmt.Errorf(<span class="string">&quot;Error: %v\n&quot;</span>, err)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        fmt.Printf(<span class="string">&quot;Success: %s\n%s\n&quot;</span>, cmdStr, out)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>其实原则上，不局限于本题中管道的情形，这个方案还可以用在更多的需要调用复杂的 <code>shell</code> 命令的场合。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> go </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> go </tag>
+            
+            <tag> bash </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>etcd v2 v3 同时存在的问题</title>
+      <link href="/2019/04/02/etcd-v2-v3/"/>
+      <url>/2019/04/02/etcd-v2-v3/</url>
+      
+        <content type="html"><![CDATA[<p>最近使用 <code>etcd</code> 时候遇到了一个问题，发现用 <code>go</code> 代码调用 <code>clientv3</code> 写进去的 <code>key</code> 和用 <code>etcdctl</code> 的 <code>key</code> 是不一样的，而且两边可以同时读写相同的 <code>key</code>， 但是值却是不相同的。</p><p>因为这个问题查了将近两个小时，最后发现，原来 <code>etcd</code> 默认情况下是 <code>v2</code> 和 <code>v3</code> 的客户端 <code>API</code> 共存的，而两个版本的 <code>API</code> 产生和查询的数据是隔离的。</p><p>用 <code>etcd</code> 的过程中看了不少的文章，结果恰恰我看的文章里都没有提到这一点，结果当了冤大头，浪费了这么多时间。</p><p>其实现在应该大部分人都是用 <code>v3</code> 版本的 <code>API</code>，<code>etcdctl</code> 默认却是 <code>v2</code>的 <code>API</code>。不知道是出于什么考虑没有把 <code>v3</code> 版本 <code>API</code> 作为 <code>etcdctl</code> 的默认 <code>API</code> 版本。</p><p>至于我会问到这个问题，也是因为我在开发的过程中想要用 <code>etcdctl</code> 来验证我的代码写进去的数据是否正确，如果我没有用 <code>etcdctl</code> 来读 <code>go</code> 客户端写进去的数据的话，也就不会有这个问题了。如果想要让 <code>etcdctl</code> 默认用 <code>v3</code> 版的 <code>API</code>，可用在使用 <code>etcdctl</code> 之前，设置版本环境变量：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> ETCDCTL_API=3</span><br><span class="line">etcdctl ...</span><br></pre></td></tr></table></figure><p>如果不想每次使用 <code>etcdctl</code> 是都设置，可以在 <code>.bashrc</code> 或者 <code>.bash_profile</code> 加入该语句：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> ETCDCTL_API=3</span><br></pre></td></tr></table></figure>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> etcd </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>mac的终端用ss做代理</title>
+      <link href="/2019/02/15/mac-term-ss/"/>
+      <url>/2019/02/15/mac-term-ss/</url>
+      
+        <content type="html"><![CDATA[<p>最近在研究<code>golang</code>，<code>go</code>提供了一个很好用的工具就是<code>go get</code>。<code>go get</code>本身不得不说是一个伟大的设计，极大地减轻了我们做包管理的负担，这个对于主要做<code>C++</code>的我的感受尤为明显。</p><p>但是在我们这个国家里，因为某些你懂得原因，顺利的用<code>go get</code>却成了一件很困难的事。之前写过一篇文章介绍<a href="http://www.up4dev.com/2018/05/14/github-use-ss/">如何让<code>git</code>走<code>SS</code>代理</a>，但是<code>go get</code>还是与<code>git</code>的情况不是完全一致的。</p><p><code>google</code>了一圈之后，我总结了一个更加通用的方法。</p><span id="more"></span><p>理论上这个方法可以让所有的终端的命令通过<code>SS</code>提供的<code>socks5</code>代理来访问网络。</p><p>方法很简单，就是在需要用代理的时候运行如下的命令：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> all_proxy=socks5://127.0.0.1:1080</span><br></pre></td></tr></table></figure><p>其中<code>socks5://127.0.0.1:1080</code>是<code>SS</code>提供的<code>socks5</code>代理服务的监听地址，可以在<code>Shadowsocks</code>的高级设置下找到。</p><p>如果想减少每次打开执行导入命令的麻烦，可以将导入语句加入到<code>~/.bash_profile</code>中。</p><hr><h4 id="参考："><a href="#参考：" class="headerlink" title="参考："></a>参考：</h4><p><a href="https://github.com/mrdulin/blog/issues/18">https://github.com/mrdulin/blog/issues/18</a></p><p><a href="https://studygolang.com/articles/9490">https://studygolang.com/articles/9490</a></p><p><a href="https://github.com/golang/go/wiki/GoGetProxyConfig">https://github.com/golang/go/wiki/GoGetProxyConfig</a></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> go </tag>
+            
+            <tag> git </tag>
+            
+            <tag> ss </tag>
+            
+            <tag> mac </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>罗技鼠标滚轮失灵的处理办法</title>
+      <link href="/2018/12/24/logintech-mouse-whele-not-working/"/>
+      <url>/2018/12/24/logintech-mouse-whele-not-working/</url>
+      
+        <content type="html"><![CDATA[<p>我一直在用罗技的一款鼠标 <code>M720 Triathlon</code> , 这款鼠标因为多了几个自定义键，可以设置对应mac触摸板的手势，我一直用的很开心。不过自从上周升级完 <code>macOS Mojave 10.14.2</code> 后突然发现鼠标的滚轮不能用了，包括滚动以及滚轮的左右波动，还有哪两颗自定义键。</p><p>因为升级系统的当天也同时升级了罗技的鼠标管理软件<code>Logitech Options</code>，我一度以为是罗技软件的问题，所以我尝试了降级<code>Logitech Options</code>，依然无果。最后将<code>Logitech Options</code>卸载掉了之后发现滚轮可以用了，但是自定义键依然不能用。</p><p>就这样别扭着用了好几天，并同时尝试联系罗技的客服，然而问题提交几天根本没有人回复，也是服了这客服了。后来实在是不心甘，有常识寻找解决办法，终于在罗技自己的论坛找到了遇到同样问题的用户提出的问题和解决办法：</p><ol><li>点击左上角苹果图标</li><li>点击<code>系统偏好设置</code></li><li>点击<code>安全性与隐私</code></li><li>点击<code>隐私</code>标签页</li><li>点击左侧的<code>辅助功能</code></li><li>选中<code>Logitech Options Deamon</code>(如果是灰掉的不能点就先点击左下角的锁图标解锁)</li></ol><p>这时就发现滚轮生效了，而且可以通过<code>Logitech Options</code>来设置自定义键的功能了。</p><p>虽然可能是苹果系统升级引起的问题，但是问题出了这么久罗技官方也没有升级软件或者给出暂时解决办法，也是很不负责任。希望这篇文章能够被搜索引擎检索到，让碰到同样问题的人少些麻烦。</p><p>罗技，You are welcome! 很高兴帮你做客服…</p><p><a href="https://community.logitech.com/s/question/0D55A00007eQqkXSAS/scrolling-not-working-on-macos-mojave">参考：论坛原贴</a></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 数码 </tag>
+            
+            <tag> 泛技术 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>用安装在 Docker 中的 jenkins 运行 Docker 任务</title>
+      <link href="/2018/11/27/run-docker-by-jenkins-in-docker/"/>
+      <url>/2018/11/27/run-docker-by-jenkins-in-docker/</url>
+      
+        <content type="html"><![CDATA[<p>题目有点绕，我先尝试翻译成人话——首先安装一个 jenkins，这个 jenkins 是通过 docker 安装的，然后要用这个 jenkins 来运行自动化的项目，项目中会用到 docker 命令。而这种工作场景，采用默认的配置，是完成不了的。</p><span id="more"></span><h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>故事的缘起是这个博客，他是基于 Github Pages 的，使用的过程就是用 MarkDown 写文章，通过 HEXO 系统来构建，然后 push 到 github 上。</p><p>整体的流程实际上也不算复杂，但是作为一个程序员，总觉得会有更加智能和省事的方法（实际上就是不折腾不舒服而已）。</p><p>所以我想构建一个系统，来达到博客的自动构建和发布的效果。鉴于这部分跟主题的关系不是特别大，还是不再赘述博客的事了，也许以后会写一篇博客自动构建的文章，这里就不展开了。</p><h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>提到自动构建，很自然的想到了jenkins；然后恰好我有一台群晖的NAS，上边可以跑Docker，所以又很自然的想到了通过Docker来安装jenkins；有了jenkins，当然还要通过jenkins来运行自动化的任务，运行任务最简单且对NAS系统侵入最小的方式是通过Docker运行任务。</p><h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>上面的思路看似很顺畅，但是认真思考一下会发现，因为jenkins本身是运行在一个容器里的，所以我们在创建任务的时候给出的脚本或命令，都是在这个容器内运行的，这就出现了一个问题，这个容器内部是没有docker环境的，所以执行不了docker命令，也就是说，必须想办法来让这个容器内部可以执行docker任务。</p><h2 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h2><p>经过一番搜索之后，我找到了了这篇文章：<a href="http://www.dockone.io/article/431">在（Docker里的）Jenkins里运行Docker</a>。</p><p>最终我选择了文中提到的<code>DooD（Docker-outside-of-Docker）</code>方案。</p><p>也就是所想办法让jenkins容器可以执行宿主机上的docker命令。</p><p>因为需要给予jenkins用户sudo权限，然而官方的镜像jenkins默认是没有sudo用户权限的，所以我在官方镜像的基础上新建了一个镜像，默认给jenkins用户sudo权限。</p><p><a href="https://hub.docker.com/r/andyzhshg/jenkins/">andyzhshg&#x2F;jenkins</a></p><p>改动的内容如下：</p><figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> jenkins:<span class="number">2.60</span>.<span class="number">3</span></span><br><span class="line"><span class="keyword">MAINTAINER</span> andyzhshg &lt;andyzhshg@gmail.com&gt;</span><br><span class="line"></span><br><span class="line"><span class="keyword">USER</span> root</span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> apt-get update \</span></span><br><span class="line"><span class="language-bash">  &amp;&amp; apt-get install -y sudo \</span></span><br><span class="line"><span class="language-bash">  &amp;&amp; <span class="built_in">rm</span> -rf /var/lib/apt/lists/*</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> <span class="built_in">echo</span> <span class="string">&quot;jenkins ALL=NOPASSWD: ALL&quot;</span> &gt;&gt; /etc/sudoers</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">USER</span> jenkins</span><br></pre></td></tr></table></figure><p>运行这个镜像的容器很简单：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">docker run -d \</span><br><span class="line">-v /var/run/docker.sock:/var/run/docker.sock \</span><br><span class="line">-v $(<span class="built_in">which</span> docker):/usr/bin/docker </span><br><span class="line">-p 8080:8080 \</span><br><span class="line">andyzhshg/jenkins</span><br></pre></td></tr></table></figure><p>需要重点关注带有 <code>-v</code> 参数的两行：</p><p>第1行是将宿主机的 <code>/var/run/docker.sock</code> 映射到容器中，这样在容器中运行的 <code>docker</code> 命令，就会在宿主机上来执行。</p><p>第2行是将宿主机的 <code>docker</code> 程序映射进容器中，这样本身没有安装 <code>docker</code> 的 <code>jenkins</code> 容器就可以执行 <code>docker</code> 命令了（事实上容器里是没有运行 <code>docker</code> 的服务的，我们只是用这个映射进容器的 <code>docker</code> 来作为客户端发送docker的指令到 <code>/var/run/docker.sock</code> 而已，而 <code>/var/run/docker.sock</code> 已经被链接到宿主机了）。</p><p>至此，我们的 <code>jenkins</code> 就准备就绪了。</p><blockquote><p>当然，通常情况下我们还需要把jenkins自身的数据目录链接到宿主机的目录中，以保证容器被销毁后还能够再启动新的数据而数据可以得到保留，这些可以参考jenkins官方镜像的说明。</p><p>比如在<code>docker run</code>加上 <code>-v your_jenkins_data_path:/var/jenkins_home</code>参数。</p></blockquote><p>初始化jenkins的配置之后，我们就可以在jenkins上来新建一个自动化的构建项目了，比如我的blog自动构建项目的自动化脚本大概就是这个样子：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&quot;new blogs posted, begin auto build.&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 从gitlab拉取内容更新，构建并推送到github pages</span></span><br><span class="line">sudo docker run --<span class="built_in">rm</span> -v /volume1/docker/blog/key/:/root/.ssh -v /volume1/docker/blog/up4dev:/blog andyzhshg/hexo</span><br><span class="line"></span><br><span class="line"><span class="comment"># 推送一份内容原文到github做备份</span></span><br><span class="line">sudo docker run --<span class="built_in">rm</span> -v /volume1/docker/blog/key/:/root/.ssh -v /volume1/docker/blog/up4dev:/blog andyzhshg/hexo /blog/backup2github.sh </span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;auto build done.&quot;</span></span><br></pre></td></tr></table></figure><p>这虽然是一个特例化的应用场景，但是其他的项目也大同小异，只要准备好docker的镜像，然后再jenkins执行<code>docker run</code>就可以了。</p><p>需要注意的是，这里的<code>docker run</code>一定是要以sudo权限运行的。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> docker </tag>
+            
+            <tag> ci </tag>
+            
+            <tag> jenkins </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>spdlog 简介</title>
+      <link href="/2018/07/27/spdlog-tutorial/"/>
+      <url>/2018/07/27/spdlog-tutorial/</url>
+      
+        <content type="html"><![CDATA[<p>spdlog是一个速度快，只有头文件(header only)的C++日志库。安装和使用非常简单，而功能也比较强大，因为其简单易用轻量，可以用作我们日常开发的日志库。</p><span id="more"></span><p>项目的地址：<a href="https://github.com/gabime/spdlog">https://github.com/gabime/spdlog</a></p><p>文档地址：<a href="https://github.com/gabime/spdlog/wiki">https://github.com/gabime/spdlog/wiki</a></p><p>项目主页上介绍了该库的一系列特色：</p><ul><li>快，非常快，性能是设计的首要目标。</li><li>只有头文件 (header only)，拷贝即用</li><li>基于<a href="https://github.com/fmtlib/fmt">fmt</a>实现的丰富的格式调用</li><li>自定义格式</li><li>条件日志输出</li><li>多线程&#x2F;单线程日志输出</li><li>丰富的日志输出目标<ul><li>日志文件自动切割(Rotating)</li><li>按日分割日志文件</li><li>控制台输出(支持着色)</li><li>系统日志(syslog)</li><li>windows debuger (<code>OutputDebugString(..)</code>)</li><li>方便的自定义扩展</li></ul></li><li>过滤-可以再运行时或者编译时修改过滤级别</li></ul><p>使用的例子可以参考项目的实例或者文档，非常明了。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> C++ </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> C++ </tag>
+            
+            <tag> 算法 </tag>
+            
+            <tag> 库 </tag>
+            
+            <tag> 后端 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>EOS 代码分析 [1] —— AppBase</title>
+      <link href="/2018/06/26/eos-code-read-1-appbase/"/>
+      <url>/2018/06/26/eos-code-read-1-appbase/</url>
+      
+        <content type="html"><![CDATA[<p><a href="https://github.com/eosio/appbase">EOSIO&#x2F;appbase</a>,如项目介绍所说——</p><blockquote><p>The AppBase library provides a basic framework for building applications from a set of plugins. AppBase manages the plugin life-cycle and ensures that all plugins are configured, initialized, started, and shutdown in the proper order.</p></blockquote><p>是一个从一系列插件构建应用的基本框架。 EOS的大多应用都是基于这个框架来构建的。</p><p>AppBase是独立于EOS项目的一个独立项目，可以单独的编译，我们也可以利用这个框架构建自己的应用。</p><span id="more"></span><p>为了方便描述，我fork了一份代码，并在这个fork项目上添加了我阅读过程中的注释，这个fork的项目在这里：</p><p><a href="https://github.com/andyzhshg/appbase">andyzhshg&#x2F;appbase</a></p><p>下文的介绍均基于AppBase提供的<a href="https://github.com/andyzhshg/appbase/tree/master/examples">示例程序</a>为基础进行说明，这个示例程序实现了一个<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L41"><code>net_plugin</code></a>，这个<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L41"><code>net_plugin</code></a>又有一个依赖项<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L14"><code>chain_plugin</code></a>。这基本展示了AppBase使用中的方方面面。</p><h2 id="0-基本使用流程"><a href="#0-基本使用流程" class="headerlink" title="0. 基本使用流程"></a>0. 基本使用流程</h2><p>一个基于AppBase的程序的基本使用流程如下：</p><ol><li>注册插件，<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L68"><code>register_plugin</code></a></li><li>初始化，<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L70"><code>initialize</code></a></li><li>启动，<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L73"><code>startup</code></a></li><li>进入事件监听等待，<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L75"><code>exec</code></a></li><li>程序退出，<code>shutdown</code>。</li></ol><p>基本上就是这么简单，AppBase本身提供了一个基础进程环境，来使得用户的代码可以以插件的形式集成进来。</p><p>下面我们逐一解析一下这些步骤</p><h2 id="1-注册插件"><a href="#1-注册插件" class="headerlink" title="1. 注册插件"></a>1. 注册插件</h2><p><a href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L84"><code>application::register_plugin</code></a>是一个模板函数，模板参数是要注册的插件的类型。</p><p>该函数首先通过插件的名称查找该插件是否已经注册过，如果注册过则直接返回，不会重复注册。插件名的名称是根据插件的类型推导得来的。</p><p>如果没有注册过，则<code>new</code>一个插件的对象，并将其记录进<code>plugins</code>这个列表中。</p><p>调用插件自身的<code>register_dependencies</code>来注册插件自身的依赖，插件的依赖也是插件。</p><h2 id="2-初始化"><a href="#2-初始化" class="headerlink" title="2. 初始化"></a>2. 初始化</h2><p>从<a href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L64"><code>application::initialize</code></a>函数的实现可以看到实际的初始化工作是在<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L114">application::initialize_impl</a>完成的。</p><p>其完成的主要工作是完成程序配置项的设置和根据配置项做初始化。</p><p>配置项的初始化部分，首先是调用<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L83">插件的配置项设置</a> ，然后才是<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L95">程序自身的配置项设置</a>。配置项的处理是使用<code>boost::program_options</code>完成的。</p><p>配置项处理完成后，首先是<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L121">根据配置进行<code>application</code>自身的初始化处理</a>，然后是<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L195">根据配置项进行插件的初始化处理</a>。</p><h2 id="3-启动"><a href="#3-启动" class="headerlink" title="3. 启动"></a>3. 启动</h2><p><a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L61"><code>application::startup</code></a>的过程很简单，就是逐一调用插件的<a href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L236"><code>startup</code></a>函数，并处理异常。</p><p>因为<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L61"><code>application::startup</code></a>本身不进行任何应用逻辑的处理，所有的应用逻辑都是插件来完成的，所以我们只要看一下插件是如何完成<a href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L236"><code>startup</code></a>的。</p><p>我们发现，用户并不需要实现<code>startup</code>函数，而是实现一个<a href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L241"><code>plugin_requires</code></a>和<a href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L244"><code>plugin_startup</code></a>。而事实上如果我们观察示例程序，发现其并没有实现<code>plugin_requires</code>函数，这个函数事实上是实现了的，由一个<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L47"><code>APPBASE_PLUGIN_REQUIRES</code></a>宏来实现，这个宏极大的简化了声明依赖的过程，只需要提供一个依赖的插件的类型的列表即可，我的代码注释中有对<a href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/plugin.hpp#L11">这个宏的简单解释</a>，你也可是尝试展开这个宏。经过这个宏的简化，实际上必须有用户自己完成的只有<code>plugin_startup</code>这个函数了，这里给用户一个机会来完成插件自身在启动前要完成的工作。</p><p>需要注意的是，插件的调用顺序是与注册的顺序相同的。</p><h2 id="4-进入事件等待"><a href="#4-进入事件等待" class="headerlink" title="4. 进入事件等待"></a>4. 进入事件等待</h2><p><a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L229"><code>application::exec</code></a>函数启动一个<code>boost::asio::io_service</code>并监听了几个信号：<code>SIGINT / SIGTERM / SIGPIPE</code>，并阻塞在<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L249"><code>io_serv-&gt;run();</code></a> 这行代码，当进程收到这几个信号中的一个的时候，阻塞函数返回，并进入<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L210"><code>shutdown</code></a>函数。</p><h2 id="5-程序退出"><a href="#5-程序退出" class="headerlink" title="5. 程序退出"></a>5. 程序退出</h2><p>观察示例代码我们发现并没有显式调用<a href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L210"><code>application::shutdown</code></a>函数，实际上这是由上一步骤中监听的事件来触发的，也就是类似<code>CTRL+C</code>这样的键盘时间或者<code>kill</code>之类的命令触发的。</p><p>在这个函数中，会逐一的调用插件的<code>shutdown</code>函数，时间上就是用户自己编写的<a href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L60"><code>plugin_shutdown</code></a>函数。</p><p>需要注意的是，<code>shutdown</code>中调用插件的顺序是与<code>startup</code>的时候的顺序相反的，也就是注册的相反的顺序。</p><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>综合上述的流程，我们发现基于<code>AppBase</code>编写一个程序主要的工作就是编写插件，而完成一个插件的流程就是如下简单几个步骤：</p><ol><li><p>从<code>appbase::plugin</code>派生</p></li><li><p>用<code>APPBASE_PLUGIN_REQUIRES</code>宏来声明插件的依赖</p></li><li><p>实现<code>plugin_initialize</code></p></li><li><p>实现<code>plugin_startup</code></p></li><li><p>实现<code>plugin_shutdown</code></p></li></ol><p>对于AppBase的实现细节我的fork项目<a href="https://github.com/andyzhshg/appbase">andyzhshg&#x2F;appbase</a>里的注释解释的比较详细了。其中有一部分是关于<code>method</code>和<code>channel</code>的，<code>AppBase</code>本身的示例并没有演示用法，这篇文章没有解释，也许后续研究EOS的过程中我会回头解释这个设计。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 区块链 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 区块链 </tag>
+            
+            <tag> 技术 </tag>
+            
+            <tag> C++ </tag>
+            
+            <tag> EOS </tag>
+            
+            <tag> 智能合约 </tag>
+            
+            <tag> 插件 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>EOS 代码分析 [0]</title>
+      <link href="/2018/06/26/eos-code-read-0/"/>
+      <url>/2018/06/26/eos-code-read-0/</url>
+      
+        <content type="html"><![CDATA[<p>去年就开了一个坑打算分析比特币的源码，结果到现在还没有动手，理由能找到不少，但归根结底还是因为懒。比特币源码分析这个坑不打算弃，因为毕竟代码已经读的差不多了，就差写文章了，如果我争气一点的话会找时间把这个坑填上。</p><p>最近都在研究EOS，又手痒打算写一系列EOS源码分析的文章，这算是个开端。为了避免出现去年那样的挖坑不填的情况，我打算这次边看代码边写文章，文章可能会很杂很细碎，只要起到一个记录的作用就好了。如果以后有余力，再写一写系统性的分析文章。</p><p>FLAG立在这里了，开始执行。</p><p>以下是已经完成的文章列表，我随着写作的进度逐步添加：</p><ul><li><a href="http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/">EOS 代码分析 [1] —— AppBase</a></li></ul><span id="more"></span><p>我从eos的主项目clone了一份代码，写这篇文章的时候的最新release版本是v1.0.6，后续如果有重要的更改可能会merge主项目的代码，本系列文章讨论的代码均会指向我的这个fork的项目：</p><p>**<a href="https://github.com/andyzhshg/eos/tree/v1.0.6">andyzhshg&#x2F;eos</a> **</p><p>这篇开头的文章先简单介绍一下代码的基本结构，我大致介绍一下代码根目录的下重要的文件和目录：</p><table><thead><tr><th>文件或目录</th><th>说明</th></tr></thead><tbody><tr><td><a href="https://github.com/andyzhshg/eos/tree/v1.0.6/programs">programs</a></td><td>重要的二进制程序的入口代码，每个子目录都对应一个二进制程序，比如服务主程序 <a href="https://github.com/andyzhshg/eos/tree/v1.0.6/programs/nodeos">nodeos</a>，钱包程序 <a href="https://github.com/andyzhshg/eos/tree/v1.0.6/programs/cleos">cleos</a> 等</td></tr><tr><td><a href="https://github.com/andyzhshg/eos/tree/v1.0.6/libraries">libraries</a></td><td>重要组件库代码，可以说核心的实现代码大都在这个路径下</td></tr><tr><td><a href="https://github.com/andyzhshg/eos/tree/v1.0.6/contracts">contracts</a></td><td>合约程序代码，包含重要的系统合约和一些示例合约</td></tr><tr><td><a href="https://github.com/andyzhshg/eos/tree/v1.0.6/plugins">plugins</a></td><td>插件目录，eos 的架构本身就是基于一套插件体系构建起来，功能都是以插件的形式集成进来的，所以这个目录非常重要</td></tr><tr><td><a href="https://github.com/andyzhshg/eos/blob/v1.0.6/eosio_build.sh">eosio_build.sh</a></td><td>构建脚本，通过该脚本可以自动获取依赖构建项目</td></tr></tbody></table>]]></content>
+      
+      
+      <categories>
+          
+          <category> 区块链 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 区块链 </tag>
+            
+            <tag> 技术 </tag>
+            
+            <tag> C++ </tag>
+            
+            <tag> EOS </tag>
+            
+            <tag> 智能合约 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>群晖 Let&#39;s Encrypt 泛域名证书自动更新</title>
+      <link href="/2018/05/29/synology-ssl-wildcard-cert-update/"/>
+      <url>/2018/05/29/synology-ssl-wildcard-cert-update/</url>
+      
+        <content type="html"><![CDATA[<p>曾经写过一篇文章介绍如<a href="http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/">何在群晖的 NAS 通过 acme 协议更新 Let’s Encrypt 的 HTTPS 证书</a>。目前acme协议版本更新，开始支持泛域名(wildcard)，也就是说，可以申请一个类似<code>*.domain.com</code>的单一证书，就可以适配<code>abc.domain.com</code>，<code>xyz.domain.com</code>这类的子域名，而不需要单独为每个子域名申请证书了。</p><p><a href="https://github.com/acmesh-official/acme.sh"><strong>acmesh-official&#x2F;acme.sh</strong></a> 工具已经支持新的协议，我这篇文章就是在这个工具的基础上，实现泛域名的自动更新。为了减少复杂度，我编写了一个一键更新的懒人脚本，来帮助没有时间了解详细原理的同学快速部署。</p><span id="more"></span><h2 id="1-准备工作"><a href="#1-准备工作" class="headerlink" title="1. 准备工作"></a>1. 准备工作</h2><p>因为我介绍的方法是一键替换群晖的默认证书，所以，为了防止意外，最好保证你的证书列表里只有一条记录，即默认证书那一条。实际上因为支持了泛域名证书，基本上这一条记录就足够用了（当然，如果你要管理多个域名，可能本文的方法并不适用）。开始工作前你的证书列表大概应该是这个样子：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/cert-list.png"></p><h2 id="2-下载一键更新脚本"><a href="#2-下载一键更新脚本" class="headerlink" title="2.  下载一键更新脚本"></a>2.  下载一键更新脚本</h2><p>这是一键脚本的项目地址：<a href="https://github.com/andyzhshg/syno-acme">andyzhshg&#x2F;syno-acme</a>。</p><p>如果你对项目本身不感兴趣，可以直接下载打包好的工具：<a href="https://github.com/andyzhshg/syno-acme/archive/v0.2.1.zip">syno-acme v0.2.1</a>。</p><p>可以通过 File Station 将下载的工具上传到NAS的任意目录下，并解压。</p><p>解压后大概是这个样子：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/unzip.png" alt="解压"></p><h2 id="3-配置脚本参数"><a href="#3-配置脚本参数" class="headerlink" title="3. 配置脚本参数"></a>3. 配置脚本参数</h2><p>编辑脚本的配置文件<code>config</code>:</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/config.png" alt="配置"></p><p>如图所示，需要编辑的几个字段我用蓝框标记出来了。</p><p>首先是DOMAIN，也就是你的域名。</p><p>然后是DNS的类型，根据服务商的不同，DNS类型各不相同，比如阿里云（dns_ali），Dnspod（dns_dp），Godaddy（dns_gd）等。</p><p>最后要根据不同的域名服务商提供的授权密钥等信息，比如我的域名服务商是阿里云，我需要编辑<code>Ali_Key</code>和<code>Ali_Secret</code>字段，字段的内容需要到域名服务商的管理后台来查看，因为不同的服务商的查看方式不同，请大家根据自己的实际情况去查找。</p><p>需要指出的是，我给出的配置文件模板并没有给出所有acme.sh支持的域名服务商，大家可以参照 <a href="https://github.com/acmesh-official/acme.sh/tree/master/dnsapi">https://github.com/acmesh-official/acme.sh/tree/master/dnsapi</a>来添加自己的配置。一般情况下，这个页面每个文件对应一个域名服务商，比如<code>dns_ali.sh</code>就是对应阿里云，文件名去掉<code>.sh</code>扩展名就是DNS类型，比如阿里云的DNS类型就是<code>dns_ali</code>。打开对应文件， 一般都可以在文件的头部找到需要设置的授权信息对应的密钥，比如阿里云的授权密钥所在的位置如下图所示：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/apikey.png" alt="APIKEY"></p><p><code>config</code>模板中没有的服务商，请大家自行完善。</p><p>[^2018.05.31]: 针对评论区同学提出的 Linode 的 API 生效时间的问题，增加了一个配置参数<code>DNS_SLEEP</code>，出现类似问题的话可以通过修改增大这个参数来解决。</p><h2 id="4-配置定时任务"><a href="#4-配置定时任务" class="headerlink" title="4. 配置定时任务"></a>4. 配置定时任务</h2><h3 id="i-查找脚本路径"><a href="#i-查找脚本路径" class="headerlink" title="i. 查找脚本路径"></a>i. 查找脚本路径</h3><p>在 File Station 中定位到下载的一键脚本的目录，查看该脚本的绝对路径：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/file-info.png"></p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/file-path.png"></p><p>复制完整的绝对路径到剪贴板。</p><h3 id="ii-创建定时任务"><a href="#ii-创建定时任务" class="headerlink" title="ii. 创建定时任务"></a>ii. 创建定时任务</h3><p>打开 <code>控制面板 / 任务计划 / 新增 / 计划的任务 / 用户自定义的脚本</code>：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/task.png"></p><p>设置任务名称和操作用户，需要注意的是这里一定要选择<code>root</code>：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/task-name.png"></p><p>设置计划的时间和周期，这里只支持按月或者年重复，我们只能取按月重复才能满足 Let’s Encrypt 至少3个月更新一次的要求：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/task-inv.png"></p><p>设置执行脚本，这里我们将脚本的输出重定向到了一个<code>log.txt</code>的文件中，以方便后期查看脚本的执行情况：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/task-cmd.png"></p><p>上图红框中的脚本命令为(注意没有换行)：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/volume1/nas_share/certs/syno-acme/cert-up.sh update &gt;&gt; /volume1/nas_share/certs/syno-acme/log.txt 2&gt;&amp;1</span><br></pre></td></tr></table></figure><p>具体的路径是步骤 <code>i</code>中复制的路径。</p><h3 id="iii-试运行脚本"><a href="#iii-试运行脚本" class="headerlink" title="iii. 试运行脚本"></a>iii. 试运行脚本</h3><p>可以在新建的任务上点击右键立即执行任务：</p><p><img src="http://s3.up4dev.com:38080/blog/nas-cert-up/task-run.png"></p><p>这样脚本就会运行，自动更新证书，并重启web服务器加载新的脚本。以后，NAS会每隔一个月执行一次该脚本，自动更新证书。</p><h3 id="iv-回滚"><a href="#iv-回滚" class="headerlink" title="iv. 回滚"></a>iv. 回滚</h3><p>脚本里提供了回滚命令，可以通过ssh登录到nas，定位到对应目录，执行如下命令回滚证书目录到备份的状态：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/volume1/nas_share/certs/syno-acme/cert-up.sh revert</span><br></pre></td></tr></table></figure><h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这个一键脚本的特点是最小限度的触碰系统文件，仅<code>/usr/syno/etc/certificate/_archive</code>目录会被更改。<code>acme.sh</code>工具随用随时下载，保持最新，用完即删除，不占用磁盘空间。</p><p>这基本就是本文的全部了，如果大家使用中遇到问题，可以在这里留言或者到 <a href="https://github.com/andyzhshg/syno-acme/issues">https://github.com/andyzhshg/syno-acme/issues</a> 提issue。</p><hr><p>[^参考1]: <a href="https://github.com/Neilpang/acme.sh/wiki/Synology-NAS-Guide">Synology NAS Guide</a><br>[^参考2]: <a href="http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/">群晖 Let’s Encrypt 证书的自动更新</a></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> NAS </tag>
+            
+            <tag> HTTPS </tag>
+            
+            <tag> Let&#39;s Encrypt </tag>
+            
+            <tag> 群晖 </tag>
+            
+            <tag> 泛域名 </tag>
+            
+            <tag> acme </tag>
+            
+            <tag> Synology </tag>
+            
+            <tag> SSL </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>如何让git命令通过ss拉取github代码</title>
+      <link href="/2018/05/14/github-use-ss/"/>
+      <url>/2018/05/14/github-use-ss/</url>
+      
+        <content type="html"><![CDATA[<p><code>github</code> 还没有被墙，但是 <code>github</code> 很慢（至少我家的北京电信宽带下情况是这样）。终于忍受不了<code>github</code> 10~50 KB 的下载速度，我在网上找了下设置代理的方法，让 <code>git</code> 命令可以通过 <code>ss</code> 代理拉取 <code>github</code> 的代码。</p><span id="more"></span><p>我们从 <code>clone</code> 一个全新的项目开始。</p><blockquote><p>这里其实是针对特定项目设置代理的方法，其实也可以设置全局的代理，这样每个项目就跟不设置代理时一样操作就可以了，我不想每个项目都走代理（因为我有一些不托管在 <code>github</code> 的项目），所以才会分开设置。设置全局代理的方法，可以参考我在文末给出的参考链接。</p></blockquote><h2 id="1-构建项目目录"><a href="#1-构建项目目录" class="headerlink" title="1. 构建项目目录"></a>1. 构建项目目录</h2><p>一般情况下，我们克隆一个项目都是直接通过 <code>git clone</code> 命令，像这样：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> git@github.com:YourName/YourRepo.git</span><br></pre></td></tr></table></figure><p>或者这样</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/YourName/YourRepo.git</span><br></pre></td></tr></table></figure><p><code>git clone</code>命令会创建一个目录并将项目的代码数据拉取到这个目录中，这样的话我们还没有机会给项目设置代理，就已经开始从网络获取数据了。所以这里我将这个步骤做了一下分解。</p><p>我们通过下边的步骤来初始化项目</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 首先创建一个空的项目目录</span></span><br><span class="line"><span class="built_in">mkdir</span> YourRepo</span><br><span class="line"><span class="built_in">cd</span> YourRepo</span><br><span class="line"><span class="comment"># 初始化git环境</span></span><br><span class="line">git init</span><br><span class="line"><span class="comment"># 添加远端分支</span></span><br><span class="line">git remote add master git@github.com:YourName/YourRepo.git</span><br><span class="line"><span class="comment"># 或者</span></span><br><span class="line">git remote add master https://github.com/YourName/YourRepo.git</span><br></pre></td></tr></table></figure><p>这样我们就初始化好了一个项目，下一步我们将为这个项目设置 <code>ss</code> 代理。</p><h2 id="2-设置-ss-代理"><a href="#2-设置-ss-代理" class="headerlink" title="2. 设置 ss 代理"></a>2. 设置 <code>ss</code> 代理</h2><p>设置代理的方式很简单就一条命令：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git config http.proxy <span class="string">&#x27;socks5://127.0.0.1:1080&#x27;</span></span><br></pre></td></tr></table></figure><p>上面对应的是通过http协议的方法，对应git协议，通过下边的命令：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git config core.gitProxy  <span class="string">&#x27;socks5://127.0.0.1:1080&#x27;</span></span><br></pre></td></tr></table></figure><h2 id="3-拉取代码"><a href="#3-拉取代码" class="headerlink" title="3. 拉取代码"></a>3. 拉取代码</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git pull</span><br></pre></td></tr></table></figure><p>到这里基本上就讲完了，如果是一个已经存在的项目，之前没有走代理，现在想走代理，那么其实更简单，略过第1步，从第2步开始即可。</p><blockquote><p>如果是新建项目，执行完 <code>git pull</code> 后可能发现目录是空的，这是因为项目此时没有在任何一个指定的分支下，只要执行形如 <code>git checkout master</code> 命令来把项目切到一个分支即可。</p></blockquote><p><em>参考：</em> <a href="http://www.afox.cc/archives/404">Git搭配shadowsocks使用代理访问github</a></p><p>[^update 2019.02.15]: <a href="/2019/02/15/mac-term-ss/">这篇文章</a> 提到的方法可能是mac上一个更加便捷且普适的方法。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> git </tag>
+            
+            <tag> ss </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>在群晖 DS716+II 上安装 VMM(Virtual Machine Manager)</title>
+      <link href="/2018/05/10/install-vmm-on-ds716/"/>
+      <url>/2018/05/10/install-vmm-on-ds716/</url>
+      
+        <content type="html"><![CDATA[<p>我有一台群晖的NAS，型号是DS 716+II。一直都知道群晖的高端型号都是支持虚拟化的，但是在群晖的官网上查Virtual Machine Manager的支持机型，我的716+II是不支持的。不过因为这个机器是支持Docker的，所以不支持虚拟机就不支持吧，反正大部分我想要的功能用Docker都实现，这机器的赛扬处理器用来跑虚拟机本身也不会跑的很舒服。</p><p>不过最近在研究如何自动化的把DS Photo上的照片再备份一份到Google Photos，毕竟Google Photos的体验还是很不错的。</p><p>网上查到有人说了一种曲线救国的方案：用VMM虚拟一个Windows，然后在Windows里安装Google的Windows版的客户端。虽然蛋疼，但也是一种曲线救国的方案，于是我开始研究怎么在我的机器上安装VMM。然后发现居然非常简单，直接下载一个916+(其他x86平台的安装包应该也都可以)的VMM的安装包，手动安装即可…</p><p>我做一下雷锋，直接把916+的VMM安装包的下载页面贴这里，免去大家自己找的麻烦：</p><p><a href="https://www.synology.cn/zh-cn/support/download/DS916+#packages">https://www.synology.cn/zh-cn/support/download/DS916+#packages</a></p><p>在这个页面里搜索<code>Virtual Machine Manager</code>即可找到下载链接。至于怎么手动安装，怎么使用VMM，我就不详细说了。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> NAS </tag>
+            
+            <tag> 虚拟机 </tag>
+            
+            <tag> VMM </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>管理多个github账号的 ssh key</title>
+      <link href="/2018/05/05/git-multi-ssh-key/"/>
+      <url>/2018/05/05/git-multi-ssh-key/</url>
+      
+        <content type="html"><![CDATA[<p>我们大多时候是通过<code>ssh key</code>的方式来进行<code>github</code>代码库的权限管理，如何生成一个<code>ssh key</code>以及如何在<code>github</code>设置网络上有各类的说明，不是本文的重点。本文要解决的是在一个机器上管理多个账号的方法。</p><p>出于各种原因，有些人会有多个github账号，比如一个个人账号，一个工作账号。而github是不允许两个账号出现相同的SSH KEY的。那么问题来了，我们为了方便，往往都是用<code>ss-keygen</code>命令，一路默认参数在<code>~/.ssh</code>目录下生成一对名为<code>id_rsa</code>和<code>id_rsa.pub</code>的密钥，然后把<code>id_rsa.pub</code>贴到github的<code>SSH and GPG keys</code>设置中去。</p><p>如何生成一个新的密钥给另一个账号，并且在使用的过程中尽量减少麻烦呢，我这里给出一种相对简便的方法。</p><span id="more"></span><h2 id="1-生成一对命名的ssh-key"><a href="#1-生成一对命名的ssh-key" class="headerlink" title="1. 生成一对命名的ssh key"></a>1. 生成一对命名的<code>ssh key</code></h2><p>首先生成一对新的<code>ssh key</code>，依然是用<code>ssh-keygen</code>命令，只是这次不用默认的参数。</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">ssh-keygen</span><br><span class="line">Generating public/private rsa key pair.</span><br><span class="line">Enter file <span class="keyword">in</span> <span class="built_in">which</span> to save the key (/YourHomeDir/.ssh/id_rsa):/YourHomeDir/.ssh/account1</span><br><span class="line">Enter passphrase (empty <span class="keyword">for</span> no passphrase):</span><br><span class="line">Enter same passphrase again:</span><br><span class="line">Your identification has been saved <span class="keyword">in</span> /YourHomeDir/.ssh/account1.</span><br><span class="line">Your public key has been saved <span class="keyword">in</span> /YourHomeDir/.ssh/account1.pub.</span><br><span class="line">The key fingerprint is:</span><br><span class="line">SHA256:...</span><br><span class="line">The key<span class="string">&#x27;s randomart image is:</span></span><br><span class="line"><span class="string">+---[RSA 2048]----+</span></span><br><span class="line"><span class="string">| . .o+.oo        |</span></span><br><span class="line"><span class="string">|. oo. ..ooo o    |</span></span><br><span class="line"><span class="string">|o+o.+o .oo.+ =   |</span></span><br><span class="line"><span class="string">|=+ .o.Eo... = .  |</span></span><br><span class="line"><span class="string">|+    .  S. o .   |</span></span><br><span class="line"><span class="string">| .    o . o      |</span></span><br><span class="line"><span class="string">|       B *       |</span></span><br><span class="line"><span class="string">|      o X *      |</span></span><br><span class="line"><span class="string">|      .o B..     |</span></span><br><span class="line"><span class="string">+----[SHA256]-----+</span></span><br></pre></td></tr></table></figure><p>需要关注的是上边命令中的第3行，我们输入了<code>/YourHomeDir/.ssh/account1</code>，也就是我们所希望的ssh密钥的名字以及路径，其他步骤基本都一样，一路默认参数回车就可以了。这是我们在<code>/YourHomeDir/.ssh/</code>路径下生成了一对名为<code>account1</code>和<code>account1.pub</code>的新秘钥。</p><blockquote><p>一定要注意新秘钥的命名，不要覆盖掉旧的秘钥造成不必要的麻烦。</p></blockquote><h2 id="2-更改本地的SSH配置"><a href="#2-更改本地的SSH配置" class="headerlink" title="2. 更改本地的SSH配置"></a>2. 更改本地的SSH配置</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/.ssh</span><br><span class="line"><span class="built_in">touch</span> config</span><br><span class="line">vim config</span><br></pre></td></tr></table></figure><p>上面的命令在ssh配置目录创建(如果不存在)一个<code>config</code>文件，并用<code>vim</code>打开编辑。通过<code>vim</code>编辑加入如下配置：</p><figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 配置示例1</span></span><br><span class="line">Host xxxx</span><br><span class="line">    HostName github.com</span><br><span class="line">    IdentityFile ~/.ssh/account1</span><br></pre></td></tr></table></figure><p>其中第1行中的<code>xxxx</code>是一个代替github.com的名字，你可以用一个自己比较容易记得域名，比如我就比较喜欢这样：</p><figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 配置示例2</span></span><br><span class="line">Host my-github-name.github.com</span><br><span class="line">    HostName github.com</span><br><span class="line">    IdentityFile ~/.ssh/account1</span><br></pre></td></tr></table></figure><p>其中<code>my-github-name</code>是对应我生成的这个<code>ssh key</code>的<code>github</code>账号的名字。</p><h2 id="3-将新生成的ssh-key加到github账号配置下"><a href="#3-将新生成的ssh-key加到github账号配置下" class="headerlink" title="3. 将新生成的ssh key加到github账号配置下"></a>3. 将新生成的<code>ssh key</code>加到github账号配置下</h2><p>将第一步生成的秘钥对中的<code>account1.pub</code>的内加入github账号的<code>SSH and GPG keys</code>设置项中。因为是一个全新的秘钥，自是不会再出现添加不进去的问题。</p><h2 id="4-克隆新的项目"><a href="#4-克隆新的项目" class="headerlink" title="4. 克隆新的项目"></a>4. 克隆新的项目</h2><p>一般情况下，我们是通过如下的方式克隆一个项目：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> git@github.com:your-account/your-prj.git</span><br></pre></td></tr></table></figure><p>我们需要对这个语句中的域名部分做一下修改：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 对应配置示例1</span></span><br><span class="line">git <span class="built_in">clone</span> git@xxxx:your-account/your-prj.git</span><br></pre></td></tr></table></figure><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 对应配置示例2</span></span><br><span class="line">git <span class="built_in">clone</span> git@my-github-name.github.com:your-account/your-prj.git</span><br></pre></td></tr></table></figure><p>这时，我们就是通过新的<code>ssh key</code>来<code>clone</code>的代码，在此之后的操作就没有区别了，一切按照之前的使用习惯即可，无论是<code>pull</code>还是<code>push</code>代码等操作都使用新的<code>ssh key</code>来进行了。</p><blockquote><p>这里补充说一个可能跟<code>ssh key</code>的关系不大，但是跟多账号有关的问题，是关于<code>commit</code>代码的账号的设置的。如果默认不处理，提交代码的时候提交信息中的用户和邮箱信息是用户设置的全局账户的信息，当时应该是这样设置的：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git config --global user.name <span class="string">&quot;You Name&quot;</span></span><br><span class="line">git config --global user.email name@example.com</span><br></pre></td></tr></table></figure><p>我们往往是要给不同项目设置不同的提交信息，毕竟你不想把公司的邮箱带到私人项目的提交记录中去。可以通过下边的方式文每个项目单独设置提交账户信息：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> YourRepoPath</span><br><span class="line">git config user.name <span class="string">&quot;You Name&quot;</span></span><br><span class="line">git config user.email name@example.com</span><br></pre></td></tr></table></figure><p>其实很简单，就是去掉<code>--global</code>参数。</p></blockquote><hr><p>我的第一个账号是通过默认方式添加的，所以如果没有用自定义域名添加的项目都是使用的默认的密钥即<code>id_rsa</code>，为了使用方便，可以让自己使用最频繁(或者是项目最多的账户)使用这个默认配置。</p><p>如果你有更多的账号，通过上边的方法来生成更多的<code>ssh key</code>并通过自定义域名的方式对不同账号的项目进行区分即可。</p><p>本方法同样适用于<code>gitlab</code>的多账号情境。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> git </tag>
+            
+            <tag> github </tag>
+            
+            <tag> ssh </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>群晖 Let&#39;s Encrypt 证书的自动更新</title>
+      <link href="/2017/09/11/synology-ssl-cert-update/"/>
+      <url>/2017/09/11/synology-ssl-cert-update/</url>
+      
+        <content type="html"><![CDATA[<p>去年入手了一个群晖的 NAS DS716+II，这玩意儿可以说是垂涎了好久，最后忍不住诱惑，终于是入手了。选了716+II这个盘位少但价格不便宜的家伙说白了就是为了一件事——docker。有了docker，可以说就有了无限的可能性，可以随便折腾，不用担心犯错误把NAS的主系统给搞乱了。</p><p>不过今天这篇文章我不打算介绍NAS，也不打算说怎么在上边用docker，我只想说说在这个上边怎么使用Let’s Encrypt的证书，以及怎么自动更新证书。</p><span id="more"></span><blockquote><p>[2018.05] 这篇文章提供的方案已经过时，请参考我的另一篇文章：<a href="http://www.up4dev.com/2018/05/29/synology-ssl-wildcard-cert-update/">群晖 Let’s Encrypt 泛域名证书自动更新</a></p></blockquote><p>如果说你幸福的生活在一个运营商没有封80端口的国度，那么这篇文章你就不必往下看了，因为群晖的证书管理本身就内置了Let’s Encrypt的证书管理方式。我之所以写这篇文章，是因为我家的网络是没有开放80端口的，所以群晖自带的管理工具永远都是告诉你<code>“无法连接到 Let&#39;s Encrypt。请确认域名有效。”</code></p><p>好在Let’s Encrypt提供了acme协议的认证方式，可以在没有80端口的情形下来签发和更新证书。</p><p>感谢伟大的GitHub以及无私的开发者们，所有的工具基本上都已经被开发了出来。</p><p><a href="https://github.com/Neilpang/acme.sh"><strong>Neilpang&#x2F;acme.sh</strong></a> 这个项目基本上就是我们用到的所有的工具了。</p><p>如果你是一个动手能力强的人，那么我在告诉你一下群晖的证书的保存位置<code>/usr/syno/etc/certificate/</code>的话，余下的工作你就应该可以自己搞定了。</p><p>下面就开始介绍具体的步骤：</p><h2 id="1-下载并安装acme-sh"><a href="#1-下载并安装acme-sh" class="headerlink" title="1. 下载并安装acme.sh"></a>1. 下载并安装acme.sh</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 登入NAS</span></span><br><span class="line">ssh -p your_port your_name@your_host</span><br><span class="line"><span class="comment"># 下载并安装acme.sh工具</span></span><br><span class="line">curl  https://get.acme.sh | sh</span><br></pre></td></tr></table></figure><h2 id="2-修改配置文件，填入你在指定域名提供商的授权token"><a href="#2-修改配置文件，填入你在指定域名提供商的授权token" class="headerlink" title="2. 修改配置文件，填入你在指定域名提供商的授权token"></a>2. 修改配置文件，填入你在指定域名提供商的授权token</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 进入到配置文件所在目录</span></span><br><span class="line"><span class="built_in">cd</span> ~/.acme.sh/dnsapi</span><br><span class="line"><span class="comment"># 打开阿里云的配置文件，其他提供商可以自行修改对应的配置文件</span></span><br><span class="line">vi dns_ali.sh</span><br><span class="line"><span class="comment"># 修改如下两行配置为你自己的token，注意要去掉前面的#号</span></span><br><span class="line"><span class="comment"># #Ali_Key=&quot;LTqIA87hOKdjevsf5&quot;</span></span><br><span class="line"><span class="comment"># #Ali_Secret=&quot;0p5EYueFNq501xnCPzKNbx6K51qPH2&quot;</span></span><br><span class="line"><span class="comment"># 保存并退出vi</span></span><br></pre></td></tr></table></figure><p>不同的提供商的token的形式和配置方式可能会有不同，需要你到域名管理的后台自己去获取。</p><h2 id="3-准备用于存放安装后的证书的目录"><a href="#3-准备用于存放安装后的证书的目录" class="headerlink" title="3. 准备用于存放安装后的证书的目录"></a>3. 准备用于存放安装后的证书的目录</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 新建一个存放所有证书的根目录</span></span><br><span class="line"><span class="built_in">mkdir</span> cert_save_path</span><br><span class="line"><span class="built_in">cd</span> cert_save_path</span><br><span class="line"><span class="comment"># 为每个子域名创建对应的</span></span><br><span class="line"><span class="built_in">mkdir</span> sub1.example.com</span><br><span class="line"><span class="built_in">mkdir</span> sub2.example.com</span><br><span class="line"><span class="comment"># ...</span></span><br></pre></td></tr></table></figure><h2 id="4-生成证书"><a href="#4-生成证书" class="headerlink" title="4. 生成证书"></a>4. 生成证书</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 首先加载acme.sh的环境变量</span></span><br><span class="line"><span class="built_in">source</span> ~/.acme.sh/acme.sh.env</span><br><span class="line"><span class="comment"># 执行证书获取命令，我这里的dns_ali是对应阿里云的，其他供应商可以查阅acme的文档</span></span><br><span class="line">acme.sh --issue --dns dns_ali -d sub1.example.com</span><br><span class="line">acme.sh --issue --dns dns_ali -d sub2.example.com</span><br></pre></td></tr></table></figure><h2 id="5-安装证书"><a href="#5-安装证书" class="headerlink" title="5. 安装证书"></a>5. 安装证书</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">acme.sh --installcert -d sub1.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub1.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub1.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub1.example.com/fullchain.pem</span><br><span class="line">acme.sh --installcert -d sub2.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub2.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub2.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub2.example.com/fullchain.pem</span><br><span class="line"></span><br></pre></td></tr></table></figure><p>其实这里的安装是指的acme将获取的证书安装到之前建立好的目录，并没有安装到NAS自己的证书管理下边。</p><h2 id="6-NAS证书安装"><a href="#6-NAS证书安装" class="headerlink" title="6. NAS证书安装"></a>6. NAS证书安装</h2><p>控制面板 -&gt; 安全性 -&gt; 证书 -&gt; 新增 -&gt; 添加新证书 -&gt; 导入证书(描述那里填完整的子域名) -&gt; 导入证书文件(私钥为privkey 证书为cert.pem 中间证书为fullchain.pem)</p><p>这一步将我们从Let’s Encrypt获取的证书安装到了NAS，我们发现有效期是三个月，如果你能够接受三个月走一遍上边的流程，那么到这里就可以结束了，如果想把这个过程自动化起来，请接着看下边的流程。</p><h2 id="7-证书更新命令"><a href="#7-证书更新命令" class="headerlink" title="7. 证书更新命令"></a>7. 证书更新命令</h2><p>因为Let’s Encrypt的证书的有效期只有三个月，所有我们必须至少每三个月执行一次更性操作，以防止证书过期。</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub1.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub1.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub1.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub1.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub1.example.com/fullchain.pem</span><br><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub2.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub2.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub2.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub2.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub2.example.com/fullchain.pem</span><br></pre></td></tr></table></figure><p>执行上边的命令，会从Let’s Encrypt更新证书，并安装到指定的位置。</p><h2 id="8-拷贝证书脚本"><a href="#8-拷贝证书脚本" class="headerlink" title="8. 拷贝证书脚本"></a>8. 拷贝证书脚本</h2><p>这一步我认为一定是有其他方法来做的，但是因为搞不明白群晖NAS的证书存放逻辑，暂时就想了这么一个折中的办法。</p><p>通过观察可以发现，所有证书相关的配置都是在路径<code>/usr/syno/etc/certificate</code>下的，证书存放的具体位置是<code>/usr/syno/etc/certificate/_archive</code>，该目录下的内容形如：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">2zFLdC  DEFAULT  dXWIy3  h94Uuq  IhSb6T  INFO  kGn0Zn  uTv2EL  vY1OEs  WE3xYE</span><br></pre></td></tr></table></figure><p>其中INFO的内容是一个JSON文件，记录了每个证书的存放位置和应用的范围，DEFAULT记录了哪一个是默认的证书，其他的目录则是存放一个一个的子域名的证书。</p><p>通过观察INFO的内容我们可以发现目录名和域名的对应关系，我编写了一个python脚本来分析这个对应关系以及将前文的证书拷贝到对应的位置，脚本名称为update.py.</p><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># update.py</span></span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> shutil</span><br><span class="line"></span><br><span class="line">SRC_BASE_PATH = <span class="string">&#x27;/cert_save_path&#x27;</span>   <span class="comment"># 这是步骤3里创建的目录</span></span><br><span class="line">DES_BASE_PATH = <span class="string">&#x27;/usr/syno/etc/certificate&#x27;</span></span><br><span class="line">ARC_BASE_PATH = <span class="string">&#x27;/usr/syno/etc/certificate/_archive&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># [archive_key: (domain_name, destination_path)]</span></span><br><span class="line">keys = &#123;&#125;</span><br><span class="line"></span><br><span class="line">cfg_str = <span class="built_in">open</span>(<span class="string">&#x27;/usr/syno/etc/certificate/_archive/INFO&#x27;</span>).read()</span><br><span class="line">cfg = json.loads(cfg_str)</span><br><span class="line"></span><br><span class="line"><span class="comment"># name to key</span></span><br><span class="line"><span class="keyword">for</span> k <span class="keyword">in</span> cfg:</span><br><span class="line">    <span class="keyword">for</span> service <span class="keyword">in</span> cfg[k][<span class="string">&#x27;services&#x27;</span>]:</span><br><span class="line">        name = service[<span class="string">&#x27;display_name&#x27;</span>]</span><br><span class="line">        <span class="keyword">if</span> name.find(<span class="string">&#x27;up4dev.com&#x27;</span>) &lt; <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        keys[k] = &#123;<span class="string">&#x27;name&#x27;</span> : name, <span class="string">&#x27;arc_path&#x27;</span> : <span class="string">&#x27;%s/%s&#x27;</span> %(ARC_BASE_PATH, k), <span class="string">&#x27;des_path&#x27;</span> : [], <span class="string">&#x27;src_path&#x27;</span>: <span class="string">&#x27;%s/%s&#x27;</span> %(SRC_BASE_PATH, name)&#125;</span><br><span class="line">        <span class="comment"># des_path = &#x27;%s/%s/%s&#x27; %(CERT_BASE_PATH, service[&#x27;subscriber&#x27;], service[&#x27;service&#x27;])</span></span><br><span class="line">        <span class="comment"># print name, des_path</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> k <span class="keyword">in</span> cfg:</span><br><span class="line">    <span class="keyword">for</span> service <span class="keyword">in</span> cfg[k][<span class="string">&#x27;services&#x27;</span>]:</span><br><span class="line">        des_path = <span class="string">&#x27;%s/%s/%s&#x27;</span> %(DES_BASE_PATH, service[<span class="string">&#x27;subscriber&#x27;</span>], service[<span class="string">&#x27;service&#x27;</span>])</span><br><span class="line">        <span class="keyword">if</span> os.path.exists(des_path):</span><br><span class="line">            keys[k][<span class="string">&#x27;des_path&#x27;</span>].append(des_path)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> key <span class="keyword">in</span> keys:</span><br><span class="line">    <span class="built_in">print</span> keys[key]</span><br><span class="line">    shutil.copy2(keys[key][<span class="string">&#x27;src_path&#x27;</span>] + <span class="string">&#x27;/cert.pem&#x27;</span>, keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/cert.pem&#x27;</span>)</span><br><span class="line">    shutil.copy2(keys[key][<span class="string">&#x27;src_path&#x27;</span>] + <span class="string">&#x27;/privkey.pem&#x27;</span>, keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/privkey.pem&#x27;</span>)</span><br><span class="line">    shutil.copy2(keys[key][<span class="string">&#x27;src_path&#x27;</span>] + <span class="string">&#x27;/fullchain.pem&#x27;</span>, keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/fullchain.pem&#x27;</span>)</span><br><span class="line">    <span class="keyword">for</span> des <span class="keyword">in</span> keys[key][<span class="string">&#x27;des_path&#x27;</span>]:</span><br><span class="line">        shutil.copy2(keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/cert.pem&#x27;</span>, des + <span class="string">&#x27;/cert.pem&#x27;</span>)</span><br><span class="line">        shutil.copy2(keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/privkey.pem&#x27;</span>, des + <span class="string">&#x27;/privkey.pem&#x27;</span>)</span><br><span class="line">        shutil.copy2(keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/fullchain.pem&#x27;</span>, des + <span class="string">&#x27;/fullchain.pem&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    </span><br></pre></td></tr></table></figure><h2 id="9-重启web服务"><a href="#9-重启web服务" class="headerlink" title="9. 重启web服务"></a>9. 重启web服务</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 我选用的是nginx作为Web服务，如果选择Apache则执行Apache的重启命令</span></span><br><span class="line">/usr/syno/etc/rc.sysv/nginx.sh reload</span><br></pre></td></tr></table></figure><h2 id="10-自动化脚本"><a href="#10-自动化脚本" class="headerlink" title="10. 自动化脚本"></a>10. 自动化脚本</h2><p>我们将8，9，10三个步骤的操作串起来，做成一个自动化脚本，保存为auto_update.sh</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 更新并安装</span></span><br><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub1.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub1.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub1.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub1.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub1.example.com/fullchain.pem</span><br><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub2.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub2.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub2.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub2.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub2.example.com/fullchain.pem</span><br><span class="line"></span><br><span class="line"><span class="comment"># 拷贝到NAS的证书路径</span></span><br><span class="line">python update.py</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重启Web服务</span></span><br><span class="line"></span><br><span class="line">/usr/syno/etc/rc.sysv/nginx.sh reload</span><br><span class="line"></span><br></pre></td></tr></table></figure><h2 id="11-设置定时任务"><a href="#11-设置定时任务" class="headerlink" title="11. 设置定时任务"></a>11. 设置定时任务</h2><p>控制面板 -&gt; 任务计划 -&gt; 新增 -&gt; 计划的任务 -&gt; 用户定义的脚本 -&gt; 计划(设置成每月执行一次) -&gt; 任务设置(用户定义的脚本中填入步骤10的脚本的完整路径)</p><p>[^2018.05.09]: Let’s Encrypt 已经支持wildcard类型的证书，可能已经有比本文更好的方法了，待我研究之后再写一篇文章。</p><p>[^2018.05.30]: 泛域名的更新方法我已经另写了另一篇文章，大家可以参考：<a href="http://www.up4dev.com/2018/05/29/synology-ssl-wildcard-cert-update/">群晖 Let’s Encrypt 泛域名证书自动更新</a></p><h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul><li><a href="https://forum.51nb.com/thread-1789843-1-1.html">forum.51nb.com: 群晖安装并自动续期Let’s Encrypt SSL证书</a></li><li><a href="https://github.com/Neilpang/acme.sh/wiki/%E8%AF%B4%E6%98%8E">Neilpang&#x2F;acme.sh 说明</a></li></ul><p></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> NAS </tag>
+            
+            <tag> HTTPS </tag>
+            
+            <tag> Let&#39;s Encrypt </tag>
+            
+            <tag> 群晖 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>git commit 时指定时间和作者等信息</title>
+      <link href="/2017/06/12/git-commit-info-specify/"/>
+      <url>/2017/06/12/git-commit-info-specify/</url>
+      
+        <content type="html"><![CDATA[<p>最近遇到了这么一个问题，需要在提交代码的时候指定提交的时间和作者等信息，而不是当前用户和当前时间提交（不要问我为什么，就是有这么个需求）。</p><p>经过一通的搜索查找资料，终于找到一个还算是比较方便的办法。</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">GIT_AUTHOR_DATE=&quot;2017-06-01 12:33:08&quot; \</span><br><span class="line">    GIT_COMMITTER_DATE=&quot;2017-06-01 12:33:08&quot; \</span><br><span class="line">    git commit . \</span><br><span class="line">    --author=&quot;author name &lt;author@email.com&gt;&quot; \</span><br><span class="line">    -m&quot;some commit message&quot;</span><br></pre></td></tr></table></figure><p>是不是很简单。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> git </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>比特币源码分析写作计划</title>
+      <link href="/2017/01/09/bitcoin-code-review-plan/"/>
+      <url>/2017/01/09/bitcoin-code-review-plan/</url>
+      
+        <content type="html"><![CDATA[<p>2017年说来就来，回顾去年一年似乎也没有干多少正经的事情。</p><p>因为现在的工作和兴趣都在区块链这边，这新的一年的重心应该都会在区块链上，所以就有了这个计划。目的主要是敦促自己坚持完成一件事情，另外也对学习的过程有一定的记录。如果万一能够给来这里的读者一定的帮助，也算是意外的收获了。</p><p>计划中的主题会有如下的部分：</p><ul><li>代码的版本，编译，基础组织结构</li><li>交易</li><li>区块链</li><li>挖矿</li><li>网络</li></ul><p>写作的过程中，这些主题会有一定的调整，但是比特币相关细节的各个部分都应该会涵盖在内。</p><p>这个计划挂在这里，主要是要督促自己不要懈怠，具体执行的结果，随后拭目以待吧。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 区块链 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 区块链 </tag>
+            
+            <tag> 比特币 </tag>
+            
+            <tag> BitCoin </tag>
+            
+            <tag> 技术 </tag>
+            
+            <tag> C++ </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>C++11的智能指针(2) shared_ptr</title>
+      <link href="/2016/10/19/cpp11-shared_ptr/"/>
+      <url>/2016/10/19/cpp11-shared_ptr/</url>
+      
+        <content type="html"><![CDATA[<p>C++11新引入了几种智能指针：<code>unique_ptr</code>，<code>shared_ptr</code>和<code>weak_ptr</code>，而原来的<code>auto_ptr</code>被弃用。</p><p>我会写几篇文章分别来介绍这几种智能指针的用法，本篇主要介绍<code>shared_ptr</code>。</p><p><code>shared_ptr</code>可以说是我们最常规意义上理解的智能指针了，区别于<code>unique_ptr</code>，<code>share_ptr</code>有拷贝构造函数和赋值操作符，每当<code>shared_ptr</code>多出一个拷贝，所有拷贝的引用计数都会增加。</p><span id="more"></span><h2 id="shared-ptr的常规用法"><a href="#shared-ptr的常规用法" class="headerlink" title="shared_ptr的常规用法"></a><code>shared_ptr</code>的常规用法</h2><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// example1.cpp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Test</span>(<span class="type">int</span> tag) : _tag(tag) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ~<span class="built_in">Test</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::~Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="type">int</span> _tag;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function">std::shared_ptr&lt;Test&gt; <span class="title">p1</span><span class="params">(<span class="keyword">new</span> Test(<span class="number">1</span>))</span></span>;</span><br><span class="line">    p1-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    std::shared_ptr&lt;Test&gt; p2 = std::<span class="built_in">make_shared</span>&lt;Test&gt;(<span class="number">2</span>);</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    </span><br><span class="line">    std::shared_ptr&lt;Test&gt; p3 = p1;</span><br><span class="line">    p3-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p1.<span class="built_in">reset</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p2 = p3;</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>编译</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">g++ -o example1 -std=c++11 example1.cpp</span><br></pre></td></tr></table></figure><p>运行结果</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">Test::Test() 1</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:1(1)</span><br><span class="line">----------------</span><br><span class="line">Test::Test() 2</span><br><span class="line">Test::test() 2</span><br><span class="line">p2:1(2)</span><br><span class="line">----------------</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:2</span><br><span class="line">p3:2(3)</span><br><span class="line">----------------</span><br><span class="line">p1:0</span><br><span class="line">p3:1(4)</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 2</span><br><span class="line">Test::test() 1</span><br><span class="line">p2:2</span><br><span class="line">p3:2(5)</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 1(6)</span><br></pre></td></tr></table></figure><p>(1) 展示了用<code>shared_ptr</code>的构造函数来生成一个<code>shared_ptr</code>对象，并且我们看到他的引用计数现在是<code>1</code>。</p><p>(2) 展示了用<code>make_shared</code>来生成一个<code>shared_ptr</code>，可以看到，这里我们终于彻底告别了<code>new</code>，是不是感觉有点暗爽。</p><p>(3) 展示了<code>shared_ptr</code>的赋值操作，我们看到，赋值之后，<code>p1</code>和<code>p3</code>的引用计数都增加到了<code>2</code>。</p><p>(4) <code>reset</code>操作使得<code>p1</code>变为空的，所以它的引用计数为<code>0</code>，而<code>p3</code>的引用计数则减少到了1，此时的<code>p1</code>和<code>p3</code>已经完全不是一回事了。</p><p>(5) <code>p2 = p3</code>的操作使得<code>p2</code>原来指向的对象被释放，所以我们首先看到一条析构函数的输出。然后我们看到<code>p2</code> <code>p3</code>的的引用计数都变成了<code>2</code>。</p><p>(6) 程序退出的时候，很自然的，所有的智能指针都出了作用域，所以最后一条析构调用被输出。</p><h2 id="类型转换"><a href="#类型转换" class="headerlink" title="类型转换"></a>类型转换</h2><p>假设我们两个类</p><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Base</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Base</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Base::Base()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">Base</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Base::~Base()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Base::test()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Derived</span> : <span class="keyword">public</span> Base &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Derived</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Derived::Derived()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">Derived</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Derived::~Derived()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Derived::test()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::shared_ptr&lt;Base&gt; pb = std::<span class="built_in">make_shared</span>&lt;Base&gt;();</span><br><span class="line">    std::shared_ptr&lt;Derived&gt; pd = std::<span class="built_in">make_shared</span>&lt;Derived&gt;();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pb.use_count() &quot;</span> &lt;&lt; pb.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pd.use_count() &quot;</span> &lt;&lt; pd.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    pb = <span class="built_in">static_cast</span>&lt;Base&gt;(pd);</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pb.use_count() &quot;</span> &lt;&lt; pb.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pd.use_count() &quot;</span> &lt;&lt; pd.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    pb-&gt;<span class="built_in">test</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>用static_cast, dynamic_cast, const_cast是无法用在不同的shared_ptr之上的。</p><h2 id="自己实现一个shared-ptr"><a href="#自己实现一个shared-ptr" class="headerlink" title="自己实现一个shared_ptr"></a>自己实现一个<code>shared_ptr</code></h2><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//shared_ptr.h</span></span><br><span class="line"><span class="keyword">namespace</span> up4dev &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">shared_ptr</span> &#123;</span><br><span class="line">        <span class="keyword">public</span>:</span><br><span class="line">            <span class="built_in">shared_ptr</span>() : _p(<span class="literal">nullptr</span>), _c(<span class="literal">nullptr</span>)&#123;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            ~<span class="built_in">shared_ptr</span>() &#123;</span><br><span class="line">                <span class="built_in">reset</span>();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="built_in">shared_ptr</span>(T* p) : _p(p), _c(<span class="keyword">new</span> <span class="built_in">int</span>(<span class="number">1</span>)) &#123;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="built_in">shared_ptr</span>(<span class="type">const</span> shared_ptr&amp; sp) &#123;</span><br><span class="line">                <span class="built_in">reset</span>();</span><br><span class="line">                _p = sp._p;</span><br><span class="line">                _c = sp._c;</span><br><span class="line">                *_c += <span class="number">1</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            shared_ptr&amp; <span class="keyword">operator</span>=(<span class="type">const</span> shared_ptr&amp; sp) &#123;</span><br><span class="line">                <span class="built_in">reset</span>();</span><br><span class="line">                _p = sp._p;</span><br><span class="line">                _c = sp._c;</span><br><span class="line">                *_c += <span class="number">1</span>;</span><br><span class="line">                <span class="keyword">return</span> *<span class="keyword">this</span>;                </span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function">T* <span class="title">get</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                <span class="keyword">return</span> _p;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            T* <span class="keyword">operator</span>-&gt;() &#123;</span><br><span class="line">                <span class="keyword">return</span> _p;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function"><span class="type">void</span> <span class="title">reset</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                <span class="keyword">if</span> (_c) &#123;</span><br><span class="line">                    *_c -= <span class="number">1</span>;</span><br><span class="line">                    <span class="keyword">if</span> (*_c == <span class="number">0</span>) &#123;</span><br><span class="line">                        <span class="keyword">delete</span> _p;</span><br><span class="line">                        <span class="keyword">delete</span> _c;</span><br><span class="line">                    &#125;</span><br><span class="line">                    _p = <span class="literal">nullptr</span>;</span><br><span class="line">                    _c = <span class="literal">nullptr</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function"><span class="type">int</span> <span class="title">use_count</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                <span class="keyword">return</span> _c ? *_c : <span class="number">0</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">private</span>:</span><br><span class="line">            T* _p;</span><br><span class="line">            <span class="type">int</span>* _c;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>对前文的测试用例稍加修改，用新写的shared_ptr来替换标准库的实现</p><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//example3.cpp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;shared_ptr.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Test</span>(<span class="type">int</span> tag) : _tag(tag) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ~<span class="built_in">Test</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::~Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="type">int</span> _tag;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function">up4dev::shared_ptr&lt;Test&gt; <span class="title">p1</span><span class="params">(<span class="keyword">new</span> Test(<span class="number">1</span>))</span></span>;</span><br><span class="line">    p1-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    up4dev::shared_ptr&lt;Test&gt; p2 = up4dev::<span class="built_in">shared_ptr</span>&lt;Test&gt;(<span class="keyword">new</span> <span class="built_in">Test</span>(<span class="number">2</span>));</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    </span><br><span class="line">    up4dev::shared_ptr&lt;Test&gt; p3 = p1;</span><br><span class="line">    p3-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p1.<span class="built_in">reset</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p2 = p3;</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>编译</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">g++ -o example3 -std=c++11 example3.cpp</span><br></pre></td></tr></table></figure><p>运行结果</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">Test::Test() 1</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:1</span><br><span class="line">----------------</span><br><span class="line">Test::Test() 2</span><br><span class="line">Test::test() 2</span><br><span class="line">p2:1</span><br><span class="line">----------------</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:2</span><br><span class="line">p3:2</span><br><span class="line">----------------</span><br><span class="line">p1:0</span><br><span class="line">p3:1</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 2</span><br><span class="line">Test::test() 1</span><br><span class="line">p2:2</span><br><span class="line">p3:2</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 1</span><br></pre></td></tr></table></figure><h2 id="C-11的智能指针系列文章"><a href="#C-11的智能指针系列文章" class="headerlink" title="C++11的智能指针系列文章"></a>C++11的智能指针系列文章</h2><ul><li><p><a href="http://www.up4dev.com/2016/10/09/cpp11-unique_ptr/">C++11的智能指针(1) unique_ptr</a></p></li><li><p><a href="#">C++11的智能指针(2) shared_ptr</a></p></li></ul>]]></content>
+      
+      
+      <categories>
+          
+          <category> C++ </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> C++ </tag>
+            
+            <tag> C++0x </tag>
+            
+            <tag> 智能指针 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>给VMWare Fusion设置固定IP</title>
+      <link href="/2016/10/15/vmware-fusion-static-ip/"/>
+      <url>/2016/10/15/vmware-fusion-static-ip/</url>
+      
+        <content type="html"><![CDATA[<p>最近在Mac上用<code>WMware Fusion</code>跑<code>Linux</code>，主要是用来做server端的开发，通过ssh连到虚拟机里做操作。</p><p>因为记性不好，我一般都会在<code>/etc/hosts</code>里设置一条记录，给虚拟机一个域名，像是这样</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># ubuntu虚拟机</span><br><span class="line">192.168.110.132 ubuntu.vm</span><br></pre></td></tr></table></figure><p>然后我就可以通过域名的方式登录虚拟机了，像这样</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssh up4dev@ubuntu.vm</span><br></pre></td></tr></table></figure><p>但是使用的过程中遇到了一个问题，有时候虚拟机重启后发现虚拟机的IP发生了变化，这就导致了hosts的设置失效，必须重新设置hosts。</p><p>那么怎么能让虚机IP固定下来呢，Google了一圈下来，终于有了比较靠谱的方式，说起来还有点小麻烦，不过按照下面的步骤一条一条的来，应该都会成功。</p><span id="more"></span><p>先说下我的环境，<code>macOS</code>版本是<code>10.12</code>，<code>VMware Fusion</code>的版本是<code>8.5.0</code>。</p><h2 id="步骤1-查询虚拟机的MAC地址"><a href="#步骤1-查询虚拟机的MAC地址" class="headerlink" title="步骤1 - 查询虚拟机的MAC地址"></a>步骤1 - 查询虚拟机的MAC地址</h2><p>话不多说，直接上图</p><p><img src="http://s3.up4dev.com:38080/blog/vmware-fusion-static-ip/0.jpeg" alt="设置-网络适配器"></p><p><img src="http://s3.up4dev.com:38080/blog/vmware-fusion-static-ip/1.jpeg" alt="设置-网络是配置-MAC地址"></p><h2 id="步骤2-修改dhcpd-conf"><a href="#步骤2-修改dhcpd-conf" class="headerlink" title="步骤2 - 修改dhcpd.conf"></a>步骤2 - 修改dhcpd.conf</h2><p><code>dhcpd.conf</code>位于目录<code>/Library/Preferences/VMware Fusion/vmnet8</code>。</p><p>用你最喜欢的文本编辑器打开<code>/Library/Preferences/VMware Fusion/vmnet8/dhcpd.conf</code>，我这里用vim，需要用管理员权限sudo</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo vim /Library/Preferences/VMware\ Fusion/vmnet8/dhcpd.conf</span><br></pre></td></tr></table></figure><p>看到的内容大概是这样：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"># Configuration file for ISC 2.0 vmnet-dhcpd operating on vmnet8.</span><br><span class="line">#</span><br><span class="line"># This file was automatically generated by the VMware configuration program.</span><br><span class="line"># See Instructions below if you want to modify it.</span><br><span class="line">#</span><br><span class="line"># We set domain-name-servers to make some DHCP clients happy</span><br><span class="line"># (dhclient as configured in SuSE, TurboLinux, etc.).</span><br><span class="line"># We also supply a domain name to make pump (Red Hat 6.x) happy.</span><br><span class="line">#</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">###### VMNET DHCP Configuration. Start of &quot;DO NOT MODIFY SECTION&quot; #####</span><br><span class="line"># Modification Instructions: This section of the configuration file contains</span><br><span class="line"># information generated by the configuration program. Do not modify this</span><br><span class="line"># section.</span><br><span class="line"># You are free to modify everything else. Also, this section must start</span><br><span class="line"># on a new line</span><br><span class="line"># This file will get backed up with a different name in the same directory</span><br><span class="line"># if this section is edited and you try to configure DHCP again.</span><br><span class="line"></span><br><span class="line"># Written at: 09/14/2016 14:21:31</span><br><span class="line">allow unknown-clients;</span><br><span class="line">default-lease-time 1800;                # default is 30 minutes</span><br><span class="line">max-lease-time 7200;                    # default is 2 hours</span><br><span class="line"></span><br><span class="line">subnet 192.168.110.0 netmask 255.255.255.0 &#123;</span><br><span class="line">range 192.168.110.128 192.168.110.254;</span><br><span class="line">option broadcast-address 192.168.110.255;</span><br><span class="line">option domain-name-servers 192.168.110.2;</span><br><span class="line">option domain-name localdomain;</span><br><span class="line">default-lease-time 1800;                # default is 30 minutes</span><br><span class="line">max-lease-time 7200;                    # default is 2 hours</span><br><span class="line">option netbios-name-servers 192.168.110.2;</span><br><span class="line">option routers 192.168.110.2;</span><br><span class="line">&#125;</span><br><span class="line">host vmnet8 &#123;</span><br><span class="line">hardware ethernet 00:50:56:C0:00:08;</span><br><span class="line">fixed-address 192.168.110.1;</span><br><span class="line">option domain-name-servers 0.0.0.0;</span><br><span class="line">option domain-name &quot;&quot;;</span><br><span class="line">option routers 0.0.0.0;</span><br><span class="line">&#125;</span><br><span class="line">####### VMNET DHCP Configuration. End of &quot;DO NOT MODIFY SECTION&quot; #######</span><br></pre></td></tr></table></figure><p>我们在这个文件的最后添加以下内容：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">host Ubuntu16.04_0 &#123;</span><br><span class="line">hardware ethernet 00:0C:29:79:EC:1A;</span><br><span class="line">fixed-address 192.168.110.130;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>有三行内容值得注意：</p><ul><li><p>第1行，<code>Ubuntu16.04_0</code>是虚拟机的名字，看下图，注意要拼写要完全一致。</p><p>  <img src="http://s3.up4dev.com:38080/blog/vmware-fusion-static-ip/2.jpeg" alt="VM Name"></p></li><li><p>第2行，<code>00:0C:29:79:EC:1A</code>是上一步获取的MAC地址。</p></li><li><p>第3行，<code>192.168.110.130</code>是要设置的固定IP地址，注意要在虚拟机的IP网段，一般情况下就用上次虚拟机运行时的动态IP就可以了。</p></li></ul><h2 id="步骤3-重启VMWare-Fusion"><a href="#步骤3-重启VMWare-Fusion" class="headerlink" title="步骤3 - 重启VMWare Fusion"></a>步骤3 - 重启VMWare Fusion</h2><p>必须重启VMWare Fusion才能使上边的设置生效。</p><h2 id="步骤4-启动虚拟机"><a href="#步骤4-启动虚拟机" class="headerlink" title="步骤4 - 启动虚拟机"></a>步骤4 - 启动虚拟机</h2><p>此时在启动虚拟机，你会发现虚拟机的地址不会再变来变去了，永远是你在步骤2设置的固定IP。</p><h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul><li><a href="https://willwarren.com/2015/04/02/set-static-ip-address-in-vmware-fusion-7/">Set a Static IP Address in VMware Fusion 7</a></li></ul>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> 工具 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>C++11的智能指针(1) unique_ptr</title>
+      <link href="/2016/10/09/cpp11-unique_ptr/"/>
+      <url>/2016/10/09/cpp11-unique_ptr/</url>
+      
+        <content type="html"><![CDATA[<p>C++11新引入了几种智能指针：<code>unique_ptr</code>，<code>shared_ptr</code>和<code>weak_ptr</code>，而原来的<code>auto_ptr</code>被弃用。</p><p>我会写几篇文章分别来介绍这几种智能指针的用法，本篇主要介绍<code>unique_ptr</code>。</p><p>主要介绍<code>unique_ptr</code>的两个主要特性:</p><ol><li>保存对象的指针，当<code>unique_ptr</code>本身释放的时候，自动调用对象的析构函数。</li><li>唯一拥有它指向的对象，无法通过拷贝构造或者等号进行赋值。</li></ol><span id="more"></span><p>我们先定义一个简单的类作为示例：</p><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//test.h</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="comment">//标准构造函数</span></span><br><span class="line">    <span class="built_in">Test</span>(<span class="type">int</span> tag) : <span class="built_in">tag</span>(tag) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::Test(int) &quot;</span> &lt;&lt; tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//标准析构函数</span></span><br><span class="line">    ~<span class="built_in">Test</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::~Test() &quot;</span> &lt;&lt; tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//测试输出</span></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::test() &quot;</span> &lt;&lt; tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="type">int</span> tag;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure><h2 id="特性1-保存对象的指针，当unique-ptr本身释放的时候，自动调用对象的析构函数"><a href="#特性1-保存对象的指针，当unique-ptr本身释放的时候，自动调用对象的析构函数" class="headerlink" title="特性1 - 保存对象的指针，当unique_ptr本身释放的时候，自动调用对象的析构函数"></a>特性1 - 保存对象的指针，当<code>unique_ptr</code>本身释放的时候，自动调用对象的析构函数</h2><p>这是一个智能指针的本分，让我们免去烦人又容易出错的<code>new/delete</code>操作。</p><h3 id="示例1-最简单场景"><a href="#示例1-最简单场景" class="headerlink" title="示例1 - 最简单场景"></a>示例1 - 最简单场景</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//example1.cpp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;test.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function">std::unique_ptr&lt;Test&gt; <span class="title">p</span><span class="params">(<span class="keyword">new</span> Test(<span class="number">1</span>))</span></span>;</span><br><span class="line">    p-&gt;<span class="built_in">test</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>编译并执行</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">g++ -o example1 -std=c++11 example1.cpp</span><br><span class="line">./example1</span><br></pre></td></tr></table></figure><p>输出结果</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Test::Test(int) 1</span><br><span class="line">Test::test() 1</span><br><span class="line">Test::~Test() 1</span><br></pre></td></tr></table></figure><p>基本不需要解释，我们看到我们并没有调用delete但是Test的析构函数还是被调用了。</p><h3 id="示例2-有异常的场景"><a href="#示例2-有异常的场景" class="headerlink" title="示例2 - 有异常的场景"></a>示例2 - 有异常的场景</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//example2.cpp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;test.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">test</span><span class="params">(<span class="type">int</span> tag)</span> </span>&#123;</span><br><span class="line">    <span class="function">std::unique_ptr&lt;Test&gt; <span class="title">p</span><span class="params">(<span class="keyword">new</span> Test(tag))</span></span>;</span><br><span class="line">    <span class="keyword">if</span> (tag / <span class="number">2</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="string">&quot;except, tag = &quot;</span> + std::<span class="built_in">to_string</span>(tag); <span class="comment">//抛出异常</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> tag;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="type">int</span> ret = <span class="built_in">test</span>(<span class="number">1</span>);  <span class="comment">//不会抛出异常</span></span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;test(1) return &quot;</span> &lt;&lt; ret &lt;&lt; std::endl;</span><br><span class="line">        ret = <span class="built_in">test</span>(<span class="number">2</span>);      <span class="comment">//会抛出异常</span></span><br><span class="line">        <span class="comment">//因为上边的语句会抛出异常，下边这句不会被执行</span></span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;test(2) return &quot;</span> &lt;&lt; ret &lt;&lt; std::endl; </span><br><span class="line">    &#125; <span class="built_in">catch</span> (std::string e) &#123;</span><br><span class="line">        <span class="comment">//异常抛出是会执行</span></span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;exception caught: &quot;</span> &lt;&lt; e &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>编译并执行</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">g++ -o example2 -std=c++11 example2.cpp</span><br><span class="line">./example2</span><br></pre></td></tr></table></figure><p>输出结果</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Test::Test(int) 1</span><br><span class="line">Test::~Test() 1</span><br><span class="line">test(1) return 1</span><br><span class="line">Test::Test(int) 2</span><br><span class="line">Test::~Test() 2</span><br><span class="line">exception caught: except, tag = 2</span><br></pre></td></tr></table></figure><p>第一次调用<code>test(1)</code>的时候，没有异常抛出，函数正常返回，我们看到函数返回前，<code>Test</code>的析构函数得到了调用。</p><p>第二次调用<code>test(2)</code>的时候，函数抛出了异常，要是普通指针的话，因为函数并没有正常结束，异常之后的语句就不再被调用，包括<code>delete</code>语句，就造成了内存泄漏。然而本例中我们看到即使异常抛出，<code>Test</code>的析构函数还是得到了调用，这就是智能指针的功劳。</p><h2 id="特性2-唯一拥有它指向的对象，无法通过拷贝构造或者等号进行赋值。"><a href="#特性2-唯一拥有它指向的对象，无法通过拷贝构造或者等号进行赋值。" class="headerlink" title="特性2 - 唯一拥有它指向的对象，无法通过拷贝构造或者等号进行赋值。"></a>特性2 - 唯一拥有它指向的对象，无法通过拷贝构造或者等号进行赋值。</h2><p>这个特性就是<code>unique_ptr</code>独有的特性了。</p><p>理解这个特性，需要结合C++11新引入的move语义，move语义不在本文的讨论范围，以后有精力我可能会写一篇关于move语义的文章，现在你想了解move语义的话可以参考这几篇文章：</p><ul><li><p><a href="http://harttle.com/2015/10/11/cpp11-rvalue.html">C++11新特性：右值引用与move语义</a></p></li><li><p><a href="http://www.ibm.com/developerworks/cn/aix/library/1307_lisl_c11/">C++11 标准新特性: 右值引用与转移语义</a></p></li><li><p><a href="http://jxq.me/2012/06/06/%E8%AF%91%E8%AF%A6%E8%A7%A3c%E5%8F%B3%E5%80%BC%E5%BC%95%E7%94%A8/">[译]详解C++右值引用</a></p></li></ul><p>我们看一下下边的代码</p><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//example3.cpp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;test.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">passTest</span><span class="params">(std::unique_ptr&lt;Test&gt; t)</span> </span>&#123;</span><br><span class="line">    t-&gt;<span class="built_in">test</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function">std::unique_ptr&lt;Test&gt; <span class="title">getPtr</span><span class="params">(<span class="type">int</span> tag)</span> </span>&#123;</span><br><span class="line">    <span class="function">std::unique_ptr&lt;Test&gt; <span class="title">p</span><span class="params">(<span class="keyword">new</span> Test(tag))</span></span>;</span><br><span class="line">    <span class="keyword">return</span> p;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::unique_ptr&lt;Test&gt; p = std::<span class="built_in">unique_ptr</span>&lt;Test&gt;(<span class="keyword">new</span> <span class="built_in">Test</span>(<span class="number">1</span>));   <span class="comment">//(0)  </span></span><br><span class="line">    p-&gt;<span class="built_in">test</span>();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// std::unique_ptr&lt;Test&gt; p1 = p;                //(1)编译失败</span></span><br><span class="line">    <span class="comment">// std::unique_ptr&lt;Test&gt; p1(p);                 //(2)编译失败</span></span><br><span class="line">    std::unique_ptr&lt;Test&gt; p1 = std::<span class="built_in">move</span>(p);        <span class="comment">//(3)编译通过</span></span><br><span class="line">    p1-&gt;<span class="built_in">test</span>();                                     <span class="comment">//(4)正确</span></span><br><span class="line">    <span class="comment">// p-&gt;test();                                   //(5)错误，未定义行为</span></span><br><span class="line"></span><br><span class="line">    p = std::<span class="built_in">unique_ptr</span>&lt;Test&gt;(<span class="keyword">new</span> <span class="built_in">Test</span>(<span class="number">2</span>));</span><br><span class="line">    <span class="comment">// passTest(p);                                 //(6)编译失败</span></span><br><span class="line">    <span class="built_in">passTest</span>(std::<span class="built_in">move</span>(p));                         <span class="comment">//(7)编译通过</span></span><br><span class="line">    <span class="built_in">passTest</span>(std::<span class="built_in">unique_ptr</span>&lt;Test&gt;(<span class="keyword">new</span> <span class="built_in">Test</span>(<span class="number">3</span>)));   <span class="comment">//(8)编译通过</span></span><br><span class="line"></span><br><span class="line">    p = <span class="built_in">getPtr</span>(<span class="number">4</span>);                                  <span class="comment">//(9)函数返回</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>编译并执行</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">g++ -o example3 -std=c++11 example3.cpp</span><br><span class="line">./example3</span><br></pre></td></tr></table></figure><p>输出结果</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Test::Test(int) 1</span><br><span class="line">Test::test() 1</span><br><span class="line">Test::test() 1</span><br><span class="line">Test::Test(int) 2</span><br><span class="line">Test::test() 2</span><br><span class="line">Test::~Test() 2</span><br><span class="line">Test::Test(int) 3</span><br><span class="line">Test::test() 3</span><br><span class="line">Test::~Test() 3</span><br><span class="line">Test::~Test() 1</span><br></pre></td></tr></table></figure><p>这个例子主要是展示了<code>unique_ptr</code>的唯一性，也就是说<code>unique_ptr</code>唯一持有它指向的对象，无法通过赋值(1)或者拷贝构造(2)的方式进行初始化，它只能接受右值语义的参数来构造(0)(3)。</p><p>(4)(5)展示了<code>move</code>之后<code>p</code>已经失效。</p><p>(6)(7)(8)则展示了作为函数参数传递，同样要满足右值语义才可以。</p><p>(9)展示了作为函数返回值给<code>unique_ptr</code>赋值，这同样是满足右值语义的。</p><p>上边的这几个例子都说明了<code>unique_ptr</code>的唯一性，我们可以理解成任意时刻，只要你持有一个合法的<code>unique_ptr</code>，就可以保证你是唯一的一个持有人，不会出现另一个<code>unique_ptr</code>跟你相同的情况。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> C++ </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> C++ </tag>
+            
+            <tag> C++0x </tag>
+            
+            <tag> 智能指针 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>用network create解决Docker容器互相连接的问题</title>
+      <link href="/2016/10/09/docker-network-create/"/>
+      <url>/2016/10/09/docker-network-create/</url>
+      
+        <content type="html"><![CDATA[<p>目前在做一个P2P的程序，为了方便测试和部署，我们用<code>docker</code>来运行相同的程序实例。</p><p>作为一个P2P的程序，所有的实例之间应该是对等的，并且可以相互连接通信，看似简单，一开始的时候我们却在这里栽了跟头…</p><span id="more"></span><p>通常情况下，我们是通过在启动容器的时候传入<code>--link</code>参数的方式访问其他的容器的。</p><p>比如我们的一个容器要访问<code>mysql</code>，我们这样启动<code>mysql</code>(注意<code>--name</code>参数)：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run -e MYSQL_ROOT_PASSWORD=password --name=mysql -d mysql</span><br></pre></td></tr></table></figure><p>然后我们的需要访问<code>mysql</code>的容器这样启动(注意<code>--link</code>参数)</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run --name=my_container --link mysql:mysql my/my_image</span><br></pre></td></tr></table></figure><p>这样，在我们新启动的容器<code>my_container</code>里就能够以域名<code>mysql</code>来访问<code>mysql</code>容器了。</p><p>可现在的情况是，作为一个P2P的程序，我们要启动两个容器(至少两个)<code>container_a</code>和<code>container_b</code>。希望<code>container_a</code>能访问<code>container_b</code>，并且<code>container_b</code>可以访问<code>container_a</code>，用跟上边同样的思路我们会想到这样启动</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run --name=container_a --link container_b:container_b -d my/my_image</span><br><span class="line">docker run --name=container_b --link container_a:container_a -d my/my_image</span><br></pre></td></tr></table></figure><p>但是问题来了，当我们执行第一句命令时，<code>docker</code>会告诉我们，<code>container_b</code>不存在，可不是么，<code>container_b</code>此时还没有启动，当然是不存在的。这就造成了一种困境，<code>container_a</code>和<code>container_b</code>两者是相互依赖的，二者无论先启动谁，都要求先启动另一者，这种方式根本解决不了这个问题。</p><p>那么这种容器互相连接的问题怎么解决呢？就要轮到本文重点<code>docker network create</code>登场了。</p><p>首先我们先创建一个<code>network</code></p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker network create my-net</span><br></pre></td></tr></table></figure><p>通过执行命令可以查看到我们创建的网络</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker network ls</span><br></pre></td></tr></table></figure><p>结果应该类似下面这样</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cbd1aa22d04a        bridge              bridge              local</span><br><span class="line">33be010f6cd9        host                host                local</span><br><span class="line">628c2540d5d3        my-net              bridge              local</span><br></pre></td></tr></table></figure><p>我们看到<code>my-net</code>在这个列表中，然后我们就要利用这个新建的<code>my-net</code>网络来启动我们的容器。</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run --net=my-net --net-alias=container_a --name=container_a -d my/my_image</span><br><span class="line">docker run --net=my-net --net-alias=container_b --name=container_b -d my/my_image</span><br></pre></td></tr></table></figure><p>我们通过<code>--net</code>参数指定容器使用的网络，通过<code>--net-alias</code>指定容器在这个网络中的别名，这样在这个网络中的所有的容器就都可以通过这个别名作为域名来访问到该容器了。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> docker </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>git修改提交记录的用户名和邮箱</title>
+      <link href="/2016/10/08/git-commit-user-modify/"/>
+      <url>/2016/10/08/git-commit-user-modify/</url>
+      
+        <content type="html"><![CDATA[<p>有时候，我们进行了一次commit之后发现，用户名和邮箱错了。为什么会有这种情况，往往我们在公司和个人的项目中，会使用不同的名称和邮箱，这样一来，电脑中就有了两套用户名和邮箱的配置，或者是公司的是默认，或者是个人的是默认的，但是开始一个新项目的时候，如果正好忘了修改项目的配置，就会出现提交用户不正确的情况。</p><p>一旦出现了这种情况的话，该怎么处理呢？</p><span id="more"></span><p>如果这次提交是你的最后一次提交，那么很简单，通过下面的命令修改最后一次提交的用户名和邮箱地址：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git commit --amend --author=<span class="string">&#x27;yourname &lt;yourname@email.com&gt;&#x27;</span></span><br></pre></td></tr></table></figure><p>如果已经推送到了远端服务器，通过下面的命令将修改强制推送到远端服务器就可以了：</p><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git push origin develop -f</span><br></pre></td></tr></table></figure><hr><p><em>参考文献</em> </p><ul><li><a href="http://stackoverflow.com/questions/3042437/change-commit-author-at-one-specific-commit">StackOverflow: Change commit author at one specific commit</a></li><li><a href="https://git-scm.com/book/zh/v1/Git-%E5%9F%BA%E7%A1%80-%E6%92%A4%E6%B6%88%E6%93%8D%E4%BD%9C">Git 基础 - 撤消操作</a></li></ul>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> git </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>巧用Xcode的Target管理开发和生产的APP版本</title>
+      <link href="/2015/09/07/use-xcode-targets/"/>
+      <url>/2015/09/07/use-xcode-targets/</url>
+      
+        <content type="html"><![CDATA[<p>APP开发过程中我们经常会碰到这样的情况：需要同时维护两个版本，一个是开发测试版本，一个是线上运行版本。两者需要有不同的Bundle ID，有时甚至要连接不同的服务器。</p><p>遇到这种情况，我们的做法往往是平时开发用测试版本的Bundle ID，测试的服务地址；上线的时候人工修改成正式版本的Bundle ID，线上的服务地址。</p><p>其实，Xcode的Target功能能够很好地解决这个问题。</p><span id="more"></span><p>我们新建一个项目来说明怎么做，项目的名字叫<code>MultiTargetPrj</code>。</p><p>Xcode默认给我们创建了两个Target，一个是<code>MultiTargetPrj</code>，另一个是<code>MultiTargetPrjTests</code>。<code>MultiTargetPrjTests</code>是单元测试的Target，我们暂且忽略。</p><p>我们用<code>MultiTargetPrj</code>作为正式版，在此基础上我们新建一个Target来做开发版应用。如下图，在已有的<code>MultiTargetPrj</code> Target上点击右键，在菜单中选择<code>Duplicate</code>。</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/duplicate0.png" alt="复制targer0"></p><p>这样Xcode就为我们创建了一个名为<code>MultiTargetPrj copy</code>的Target，如下图</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/duplicate1.png" alt="复制targer1"></p><p>后边带个<code>copy</code>尾巴的名字太不优雅了，让我们重命名一下，要重命名的地方不少，我们还是直接看图吧：</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/rename0.png" alt="重命名0"></p><p>然后重命名Schemes：</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/rename1.png" alt="重命名1"></p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/rename2.png" alt="重命名2"></p><p>最后然我们编辑一下info.plist，让应用在屏幕上显示的名字各不相同，正式版叫MT，开发版叫MT Dev，如下图所示：</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/display0.png" alt="显示名0"></p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/display0.png" alt="显示名1"></p><p>我们在界面上放置一个label，预期在运行正式版的应用时，显示<code>正式版</code>，测试版的应用时，显示<code>开发版</code>。</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/xib.png" alt="xib"></p><p>为了让程序可以区分正式版和测试版，我们给开发版的target中设置一个预定义宏<code>MULTITARGET_DEV</code>:</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/macro.png" alt="设置预定义宏"></p><p>然后我们用一段代码来区分版本，设置不同的版本的文字：</p><figure class="highlight objc"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">- (<span class="type">void</span>)viewDidLoad &#123;</span><br><span class="line">    [<span class="variable language_">super</span> viewDidLoad];</span><br><span class="line">    <span class="comment">// Do any additional setup after loading the view, typically from a nib.</span></span><br><span class="line"><span class="meta">#<span class="keyword">ifndef</span> MULTITARGET_DEV</span></span><br><span class="line">    <span class="keyword">self</span>.label.text = <span class="string">@&quot;正式版&quot;</span>;</span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line">    <span class="keyword">self</span>.label.text = <span class="string">@&quot;开发版&quot;</span>;</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>分别运行一次两个Target，我们看到的主屏是这样的：</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/home.png" alt="主屏"></p><p>两个Target的运行结果是这个样子的：</p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/run0.png" alt="正式版截图"></p><p><img src="http://s3.up4dev.com:38080/blog/multitarget/run1.png" alt="测试版截图"></p><p>我把这个测试程序的代码放到了GitHub: <a href="https://github.com/andyzhshg/MultiTarget">andyzhshg&#x2F;MultiTarget</a></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 移动开发 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> iOS </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>新的开始</title>
+      <link href="/2015/09/07/new-start/"/>
+      <url>/2015/09/07/new-start/</url>
+      
+        <content type="html"><![CDATA[<p>人啊，信誓旦旦说一些事情的时候是一回事，但是真正坚持做下去，却是另一回事。</p><p>写博客这件事，说了好几年，但是实际上这么多年下来，却几乎是没有写什么东西。</p><p>计划主要还是写一些技术相关的东西，算下来工作已经6年有余了，学了很多东西，但都称不上精通。杂七杂八，学了不知道多少种技术，最终混成了一个杂学家，也是有些惭愧呢。开这个博客，主要还是想借这个契机，整理和消化一些自己的所学，给自己的技术历程一个简单的记录，如果能够帮到误打误撞看到这些文章的人，也算是锦上添花了。</p><p>如果有闲情逸致呢，可能会把还能拿得出手的非技术的散文也发在这里，如果酸倒了诸位看客的牙齿，也非我故意，是你运气不好罢了。</p><p>这篇文章叫新的开始，但愿这次开始，是真正的开始，并坚持下去。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 杂 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 牢骚 </tag>
+            
+            <tag> 非技术 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+  
+  
+</search>

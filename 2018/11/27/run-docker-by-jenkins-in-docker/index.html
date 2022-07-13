@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="题目有点绕，我先尝试翻译成人话——首先安装一个 jenkins，这个 jenkins 是通过 docker 安装的，然后要用这个 jenkins 来运行自动化的项目，项目中会用到 docker 命令。而这种工作场景，采用默认的配置，是完成不了的。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用安装在 Docker 中的 jenkins 运行 Docker 任务">
+<meta property="og:url" content="http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/index.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="题目有点绕，我先尝试翻译成人话——首先安装一个 jenkins，这个 jenkins 是通过 docker 安装的，然后要用这个 jenkins 来运行自动化的项目，项目中会用到 docker 命令。而这种工作场景，采用默认的配置，是完成不了的。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-11-27T03:57:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="技术">
+<meta property="article:tag" content="docker">
+<meta property="article:tag" content="ci">
+<meta property="article:tag" content="jenkins">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>用安装在 Docker 中的 jenkins 运行 Docker 任务</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="Top" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fas fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="Previous post" href="/2018/12/24/logintech-mouse-whele-not-working/"><i class="fas fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="Next post" href="/2018/07/27/spdlog-tutorial/"><i class="fas fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="Back to top" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="Share post" href="#"><i class="fas fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">Previous post</span>
+      <span id="i-next" class="info" style="display:none;">Next post</span>
+      <span id="i-top" class="info" style="display:none;">Back to top</span>
+      <span id="i-share" class="info" style="display:none;">Share post</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&text=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&is_video=false&description=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=用安装在 Docker 中的 jenkins 运行 Docker 任务&body=Check out this article: http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/"><i class="fas fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&name=用安装在 Docker 中的 jenkins 运行 Docker 任务&description=&lt;p&gt;题目有点绕，我先尝试翻译成人话——首先安装一个 jenkins，这个 jenkins 是通过 docker 安装的，然后要用这个 jenkins 来运行自动化的项目，项目中会用到 docker 命令。而这种工作场景，采用默认的配置，是完成不了的。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&t=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    <div id="toc">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BC%98%E8%B5%B7"><span class="toc-number">1.</span> <span class="toc-text">缘起</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%9D%E8%B7%AF"><span class="toc-number">2.</span> <span class="toc-text">思路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98"><span class="toc-number">3.</span> <span class="toc-text">问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%A1%88"><span class="toc-number">4.</span> <span class="toc-text">方案</span></a></li></ol>
+    </div>
+  </span>
+</div>
+
+    
+    <div class="content index py4">
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle" itemprop="name headline">
+        用安装在 Docker 中的 jenkins 运行 Docker 任务
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span itemprop="name">andyzhshg</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2018-11-27T03:57:00.000Z" itemprop="datePublished">2018-11-27</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fas fa-archive"></i>
+        <a class="category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fas fa-tag"></i>
+        <a class="tag-link-link" href="/tags/ci/" rel="tag">ci</a>, <a class="tag-link-link" href="/tags/docker/" rel="tag">docker</a>, <a class="tag-link-link" href="/tags/jenkins/" rel="tag">jenkins</a>, <a class="tag-link-link" href="/tags/%E6%8A%80%E6%9C%AF/" rel="tag">技术</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content" itemprop="articleBody">
+    <p>题目有点绕，我先尝试翻译成人话——首先安装一个 jenkins，这个 jenkins 是通过 docker 安装的，然后要用这个 jenkins 来运行自动化的项目，项目中会用到 docker 命令。而这种工作场景，采用默认的配置，是完成不了的。</p>
+<span id="more"></span>
+
+<h2 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h2><p>故事的缘起是这个博客，他是基于 Github Pages 的，使用的过程就是用 MarkDown 写文章，通过 HEXO 系统来构建，然后 push 到 github 上。</p>
+<p>整体的流程实际上也不算复杂，但是作为一个程序员，总觉得会有更加智能和省事的方法（实际上就是不折腾不舒服而已）。</p>
+<p>所以我想构建一个系统，来达到博客的自动构建和发布的效果。鉴于这部分跟主题的关系不是特别大，还是不再赘述博客的事了，也许以后会写一篇博客自动构建的文章，这里就不展开了。</p>
+<h2 id="思路"><a href="#思路" class="headerlink" title="思路"></a>思路</h2><p>提到自动构建，很自然的想到了jenkins；然后恰好我有一台群晖的NAS，上边可以跑Docker，所以又很自然的想到了通过Docker来安装jenkins；有了jenkins，当然还要通过jenkins来运行自动化的任务，运行任务最简单且对NAS系统侵入最小的方式是通过Docker运行任务。</p>
+<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>上面的思路看似很顺畅，但是认真思考一下会发现，因为jenkins本身是运行在一个容器里的，所以我们在创建任务的时候给出的脚本或命令，都是在这个容器内运行的，这就出现了一个问题，这个容器内部是没有docker环境的，所以执行不了docker命令，也就是说，必须想办法来让这个容器内部可以执行docker任务。</p>
+<h2 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h2><p>经过一番搜索之后，我找到了了这篇文章：<a target="_blank" rel="noopener" href="http://www.dockone.io/article/431">在（Docker里的）Jenkins里运行Docker</a>。</p>
+<p>最终我选择了文中提到的<code>DooD（Docker-outside-of-Docker）</code>方案。</p>
+<p>也就是所想办法让jenkins容器可以执行宿主机上的docker命令。</p>
+<p>因为需要给予jenkins用户sudo权限，然而官方的镜像jenkins默认是没有sudo用户权限的，所以我在官方镜像的基础上新建了一个镜像，默认给jenkins用户sudo权限。</p>
+<p><a target="_blank" rel="noopener" href="https://hub.docker.com/r/andyzhshg/jenkins/">andyzhshg&#x2F;jenkins</a></p>
+<p>改动的内容如下：</p>
+<figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> jenkins:<span class="number">2.60</span>.<span class="number">3</span></span><br><span class="line"><span class="keyword">MAINTAINER</span> andyzhshg &lt;andyzhshg@gmail.com&gt;</span><br><span class="line"></span><br><span class="line"><span class="keyword">USER</span> root</span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> apt-get update \</span></span><br><span class="line"><span class="language-bash">  &amp;&amp; apt-get install -y sudo \</span></span><br><span class="line"><span class="language-bash">  &amp;&amp; <span class="built_in">rm</span> -rf /var/lib/apt/lists/*</span></span><br><span class="line"><span class="keyword">RUN</span><span class="language-bash"> <span class="built_in">echo</span> <span class="string">&quot;jenkins ALL=NOPASSWD: ALL&quot;</span> &gt;&gt; /etc/sudoers</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">USER</span> jenkins</span><br></pre></td></tr></table></figure>
+
+<p>运行这个镜像的容器很简单：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">docker run -d \</span><br><span class="line">	-v /var/run/docker.sock:/var/run/docker.sock \</span><br><span class="line">	-v $(<span class="built_in">which</span> docker):/usr/bin/docker </span><br><span class="line">	-p 8080:8080 \</span><br><span class="line">	andyzhshg/jenkins</span><br></pre></td></tr></table></figure>
+
+<p>需要重点关注带有 <code>-v</code> 参数的两行：</p>
+<p>第1行是将宿主机的 <code>/var/run/docker.sock</code> 映射到容器中，这样在容器中运行的 <code>docker</code> 命令，就会在宿主机上来执行。</p>
+<p>第2行是将宿主机的 <code>docker</code> 程序映射进容器中，这样本身没有安装 <code>docker</code> 的 <code>jenkins</code> 容器就可以执行 <code>docker</code> 命令了（事实上容器里是没有运行 <code>docker</code> 的服务的，我们只是用这个映射进容器的 <code>docker</code> 来作为客户端发送docker的指令到 <code>/var/run/docker.sock</code> 而已，而 <code>/var/run/docker.sock</code> 已经被链接到宿主机了）。</p>
+<p>至此，我们的 <code>jenkins</code> 就准备就绪了。</p>
+<blockquote>
+<p>当然，通常情况下我们还需要把jenkins自身的数据目录链接到宿主机的目录中，以保证容器被销毁后还能够再启动新的数据而数据可以得到保留，这些可以参考jenkins官方镜像的说明。</p>
+<p>比如在<code>docker run</code>加上 <code>-v your_jenkins_data_path:/var/jenkins_home</code>参数。</p>
+</blockquote>
+<p>初始化jenkins的配置之后，我们就可以在jenkins上来新建一个自动化的构建项目了，比如我的blog自动构建项目的自动化脚本大概就是这个样子：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&quot;new blogs posted, begin auto build.&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 从gitlab拉取内容更新，构建并推送到github pages</span></span><br><span class="line">sudo docker run --<span class="built_in">rm</span> -v /volume1/docker/blog/key/:/root/.ssh -v /volume1/docker/blog/up4dev:/blog andyzhshg/hexo</span><br><span class="line"></span><br><span class="line"><span class="comment"># 推送一份内容原文到github做备份</span></span><br><span class="line">sudo docker run --<span class="built_in">rm</span> -v /volume1/docker/blog/key/:/root/.ssh -v /volume1/docker/blog/up4dev:/blog andyzhshg/hexo /blog/backup2github.sh </span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;auto build done.&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>这虽然是一个特例化的应用场景，但是其他的项目也大同小异，只要准备好docker的镜像，然后再jenkins执行<code>docker run</code>就可以了。</p>
+<p>需要注意的是，这里的<code>docker run</code>一定是要以sudo权限运行的。</p>
+
+  </div>
+</article>
+
+    <div class="blog-post-comments">
+        <div id="disqus_thread">
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+    </div>
+
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+         
+          <li><a href="/">主页</a></li>
+         
+          <li><a href="/archives/">文章</a></li>
+         
+          <li><a href="/categories/">分类</a></li>
+         
+          <li><a href="/about/">关于</a></li>
+         
+          <li><a href="/search/">🔍 搜索</a></li>
+         
+          <li><a href="/about/xiang-ji-xuan-zhi">💜</a></li>
+        
+      </ul>
+    </div>
+
+    <div id="toc-footer" style="display: none">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BC%98%E8%B5%B7"><span class="toc-number">1.</span> <span class="toc-text">缘起</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%9D%E8%B7%AF"><span class="toc-number">2.</span> <span class="toc-text">思路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%97%AE%E9%A2%98"><span class="toc-number">3.</span> <span class="toc-text">问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B9%E6%A1%88"><span class="toc-number">4.</span> <span class="toc-text">方案</span></a></li></ol>
+    </div>
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&text=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&is_video=false&description=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=用安装在 Docker 中的 jenkins 运行 Docker 任务&body=Check out this article: http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/"><i class="fas fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&title=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&name=用安装在 Docker 中的 jenkins 运行 Docker 任务&description=&lt;p&gt;题目有点绕，我先尝试翻译成人话——首先安装一个 jenkins，这个 jenkins 是通过 docker 安装的，然后要用这个 jenkins 来运行自动化的项目，项目中会用到 docker 命令。而这种工作场景，采用默认的配置，是完成不了的。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/11/27/run-docker-by-jenkins-in-docker/&t=用安装在 Docker 中的 jenkins 运行 Docker 任务"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fas fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fas fa-list fa-lg" aria-hidden="true"></i> TOC</a>
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fas fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script> 
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"Copy to clipboard!\">";
+    btn += '<i class="far fa-clone"></i>';
+    btn += '</span>'; 
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "Copied!");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

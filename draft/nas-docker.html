@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="今年的5月份买了2016年最贵的一件电子产品——群晖DS716+II NAS。这东西在以前我是不会买的，因为以前我觉得NAS就是用来存视频和照片的。视频主要是大电影小电影(你懂的)还有各种美剧，这些下载的需求还是蛮高的，我有一块2T的移动硬盘，存这些玩意儿戳戳有余，况且这些本来也不是什么重要的数据，即使硬盘坏了，也不会太心疼数据；照片什么的放硬盘里就担心硬盘挂了会丢掉了，所以我的照片主要存在百度云">
+<meta property="og:type" content="website">
+<meta property="og:title" content="在NAS上玩docker">
+<meta property="og:url" content="http://www.up4dev.com/draft/nas-docker.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="今年的5月份买了2016年最贵的一件电子产品——群晖DS716+II NAS。这东西在以前我是不会买的，因为以前我觉得NAS就是用来存视频和照片的。视频主要是大电影小电影(你懂的)还有各种美剧，这些下载的需求还是蛮高的，我有一块2T的移动硬盘，存这些玩意儿戳戳有余，况且这些本来也不是什么重要的数据，即使硬盘坏了，也不会太心疼数据；照片什么的放硬盘里就担心硬盘挂了会丢掉了，所以我的照片主要存在百度云">
+<meta property="og:locale">
+<meta property="article:published_time" content="2016-12-16T15:53:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="docker">
+<meta property="article:tag" content="宅">
+<meta property="article:tag" content="NAS">
+<meta property="article:tag" content="物">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>在NAS上玩docker</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+    <div class="content index py4">
+        
+          <header id="header">
+  <a href="/">
+  
+    
+      <div id="logo" style="background-image: url(/assets/up4dev-logo-180.png);"></div>
+    
+  
+    <div id="title">
+      <h1>UP4DEV</h1>
+    </div>
+  </a>
+  <div id="nav">
+    <ul>
+      <li class="icon">
+        <a href="#" aria-label="Menu"><i class="fas fa-bars fa-2x"></i></a>
+      </li>
+      <!--
+     --><li><a href="/">主页</a></li><!--
+   --><!--
+     --><li><a href="/archives/">文章</a></li><!--
+   --><!--
+     --><li><a href="/categories/">分类</a></li><!--
+   --><!--
+     --><li><a href="/about/">关于</a></li><!--
+   --><!--
+     --><li><a href="/search/">🔍 搜索</a></li><!--
+   --><!--
+     --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+   -->
+    </ul>
+  </div>
+</header>
+
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  
+
+  <div class="content" itemprop="articleBody">
+      
+          <p>今年的5月份买了2016年最贵的一件电子产品——群晖DS716+II NAS。这东西在以前我是不会买的，因为以前我觉得NAS就是用来存视频和照片的。视频主要是大电影小电影(你懂的)还有各种美剧，这些下载的需求还是蛮高的，我有一块2T的移动硬盘，存这些玩意儿戳戳有余，况且这些本来也不是什么重要的数据，即使硬盘坏了，也不会太心疼数据；照片什么的放硬盘里就担心硬盘挂了会丢掉了，所以我的照片主要存在百度云里，反正也没有什么见不得人的私房照，作为当年在百度混过日子的猿类一员，至少我还是不担心他会把我数据丢了的。</p>
+<p>可是今年各大网盘纷纷关门，确实是引起了不小的恐慌，百度的网盘虽然没有说要关停，但是各种限速也是让人越来越不爽，而且也保不齐那天也会一关了事，于是NAS这时就进入了我的视线。</p>
+<p>总结下来，开始关注NAS的时候的主要目标是</p>
+<ul>
+<li>应对网盘关停，安全的存储照片和各种私人文件</li>
+<li>存储各种视频，方便在电视，iPad和手机上浏览</li>
+</ul>
+<p>但最后使我下决心买这个不带硬盘也要3600大洋的DS716+II的理由，却是它的docker功能，毕竟，我是一个喜欢折腾的小码农，看到自己熟悉东西，奇怪的G点就被刺激到了。</p>
+<p>所以呢，前边撤了这么多，我这篇文章主要其实是讲docker，或者说是群晖NAS上的docker。</p>
+<span id="more"></span>
+
+<h2 id="docker的基本使用"><a href="#docker的基本使用" class="headerlink" title="docker的基本使用"></a>docker的基本使用</h2><h2 id="迅雷离线"><a href="#迅雷离线" class="headerlink" title="迅雷离线"></a>迅雷离线</h2><h2 id="btsync"><a href="#btsync" class="headerlink" title="btsync"></a>btsync</h2><h2 id="aria2"><a href="#aria2" class="headerlink" title="aria2"></a>aria2</h2>
+        
+  </div>
+</article>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

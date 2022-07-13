@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="EOSIO&#x2F;appbase,如项目介绍所说——  The AppBase library provides a basic framework for building applications from a set of plugins. AppBase manages the plugin life-cycle and ensures that all plugins are con">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EOS 代码分析 [1] —— AppBase">
+<meta property="og:url" content="http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/index.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="EOSIO&#x2F;appbase,如项目介绍所说——  The AppBase library provides a basic framework for building applications from a set of plugins. AppBase manages the plugin life-cycle and ensures that all plugins are con">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-06-26T07:35:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="区块链">
+<meta property="article:tag" content="技术">
+<meta property="article:tag" content="C++">
+<meta property="article:tag" content="EOS">
+<meta property="article:tag" content="智能合约">
+<meta property="article:tag" content="插件">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>EOS 代码分析 [1] —— AppBase</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="Top" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fas fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="Previous post" href="/2018/07/27/spdlog-tutorial/"><i class="fas fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="Next post" href="/2018/06/26/eos-code-read-0/"><i class="fas fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="Back to top" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="Share post" href="#"><i class="fas fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">Previous post</span>
+      <span id="i-next" class="info" style="display:none;">Next post</span>
+      <span id="i-top" class="info" style="display:none;">Back to top</span>
+      <span id="i-share" class="info" style="display:none;">Share post</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&text=EOS 代码分析 [1] —— AppBase"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&is_video=false&description=EOS 代码分析 [1] —— AppBase"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=EOS 代码分析 [1] —— AppBase&body=Check out this article: http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/"><i class="fas fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&name=EOS 代码分析 [1] —— AppBase&description=&lt;p&gt;&lt;a href=&#34;https://github.com/eosio/appbase&#34;&gt;EOSIO&amp;#x2F;appbase&lt;/a&gt;,如项目介绍所说——&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The AppBase library provides a basic framework for building applications from a set of plugins. AppBase manages the plugin life-cycle and ensures that all plugins are configured, initialized, started, and shutdown in the proper order.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;是一个从一系列插件构建应用的基本框架。 EOS的大多应用都是基于这个框架来构建的。&lt;/p&gt;
+&lt;p&gt;AppBase是独立于EOS项目的一个独立项目，可以单独的编译，我们也可以利用这个框架构建自己的应用。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&t=EOS 代码分析 [1] —— AppBase"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    <div id="toc">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#0-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8%E6%B5%81%E7%A8%8B"><span class="toc-number">1.</span> <span class="toc-text">0. 基本使用流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%B3%A8%E5%86%8C%E6%8F%92%E4%BB%B6"><span class="toc-number">2.</span> <span class="toc-text">1. 注册插件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-number">3.</span> <span class="toc-text">2. 初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%90%AF%E5%8A%A8"><span class="toc-number">4.</span> <span class="toc-text">3. 启动</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E8%BF%9B%E5%85%A5%E4%BA%8B%E4%BB%B6%E7%AD%89%E5%BE%85"><span class="toc-number">5.</span> <span class="toc-text">4. 进入事件等待</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%A8%8B%E5%BA%8F%E9%80%80%E5%87%BA"><span class="toc-number">6.</span> <span class="toc-text">5. 程序退出</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">7.</span> <span class="toc-text">总结</span></a></li></ol>
+    </div>
+  </span>
+</div>
+
+    
+    <div class="content index py4">
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle" itemprop="name headline">
+        EOS 代码分析 [1] —— AppBase
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span itemprop="name">andyzhshg</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2018-06-26T07:35:00.000Z" itemprop="datePublished">2018-06-26</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fas fa-archive"></i>
+        <a class="category-link" href="/categories/%E5%8C%BA%E5%9D%97%E9%93%BE/">区块链</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fas fa-tag"></i>
+        <a class="tag-link-link" href="/tags/C/" rel="tag">C++</a>, <a class="tag-link-link" href="/tags/EOS/" rel="tag">EOS</a>, <a class="tag-link-link" href="/tags/%E5%8C%BA%E5%9D%97%E9%93%BE/" rel="tag">区块链</a>, <a class="tag-link-link" href="/tags/%E6%8A%80%E6%9C%AF/" rel="tag">技术</a>, <a class="tag-link-link" href="/tags/%E6%8F%92%E4%BB%B6/" rel="tag">插件</a>, <a class="tag-link-link" href="/tags/%E6%99%BA%E8%83%BD%E5%90%88%E7%BA%A6/" rel="tag">智能合约</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content" itemprop="articleBody">
+    <p><a target="_blank" rel="noopener" href="https://github.com/eosio/appbase">EOSIO&#x2F;appbase</a>,如项目介绍所说——</p>
+<blockquote>
+<p>The AppBase library provides a basic framework for building applications from a set of plugins. AppBase manages the plugin life-cycle and ensures that all plugins are configured, initialized, started, and shutdown in the proper order.</p>
+</blockquote>
+<p>是一个从一系列插件构建应用的基本框架。 EOS的大多应用都是基于这个框架来构建的。</p>
+<p>AppBase是独立于EOS项目的一个独立项目，可以单独的编译，我们也可以利用这个框架构建自己的应用。</p>
+<span id="more"></span>
+
+<p>为了方便描述，我fork了一份代码，并在这个fork项目上添加了我阅读过程中的注释，这个fork的项目在这里：</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase">andyzhshg&#x2F;appbase</a></p>
+<p>下文的介绍均基于AppBase提供的<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/tree/master/examples">示例程序</a>为基础进行说明，这个示例程序实现了一个<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L41"><code>net_plugin</code></a>，这个<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L41"><code>net_plugin</code></a>又有一个依赖项<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L14"><code>chain_plugin</code></a>。这基本展示了AppBase使用中的方方面面。</p>
+<h2 id="0-基本使用流程"><a href="#0-基本使用流程" class="headerlink" title="0. 基本使用流程"></a>0. 基本使用流程</h2><p>一个基于AppBase的程序的基本使用流程如下：</p>
+<ol>
+<li>注册插件，<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L68"><code>register_plugin</code></a></li>
+<li>初始化，<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L70"><code>initialize</code></a></li>
+<li>启动，<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L73"><code>startup</code></a></li>
+<li>进入事件监听等待，<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L75"><code>exec</code></a></li>
+<li>程序退出，<code>shutdown</code>。</li>
+</ol>
+<p>基本上就是这么简单，AppBase本身提供了一个基础进程环境，来使得用户的代码可以以插件的形式集成进来。</p>
+<p>下面我们逐一解析一下这些步骤</p>
+<h2 id="1-注册插件"><a href="#1-注册插件" class="headerlink" title="1. 注册插件"></a>1. 注册插件</h2><p><a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L84"><code>application::register_plugin</code></a>是一个模板函数，模板参数是要注册的插件的类型。</p>
+<p>该函数首先通过插件的名称查找该插件是否已经注册过，如果注册过则直接返回，不会重复注册。插件名的名称是根据插件的类型推导得来的。</p>
+<p>如果没有注册过，则<code>new</code>一个插件的对象，并将其记录进<code>plugins</code>这个列表中。</p>
+<p>调用插件自身的<code>register_dependencies</code>来注册插件自身的依赖，插件的依赖也是插件。</p>
+<h2 id="2-初始化"><a href="#2-初始化" class="headerlink" title="2. 初始化"></a>2. 初始化</h2><p>从<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L64"><code>application::initialize</code></a>函数的实现可以看到实际的初始化工作是在<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L114">application::initialize_impl</a>完成的。</p>
+<p>其完成的主要工作是完成程序配置项的设置和根据配置项做初始化。</p>
+<p>配置项的初始化部分，首先是调用<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L83">插件的配置项设置</a> ，然后才是<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L95">程序自身的配置项设置</a>。配置项的处理是使用<code>boost::program_options</code>完成的。</p>
+<p>配置项处理完成后，首先是<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L121">根据配置进行<code>application</code>自身的初始化处理</a>，然后是<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L195">根据配置项进行插件的初始化处理</a>。</p>
+<h2 id="3-启动"><a href="#3-启动" class="headerlink" title="3. 启动"></a>3. 启动</h2><p><a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L61"><code>application::startup</code></a>的过程很简单，就是逐一调用插件的<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L236"><code>startup</code></a>函数，并处理异常。</p>
+<p>因为<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L61"><code>application::startup</code></a>本身不进行任何应用逻辑的处理，所有的应用逻辑都是插件来完成的，所以我们只要看一下插件是如何完成<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L236"><code>startup</code></a>的。</p>
+<p>我们发现，用户并不需要实现<code>startup</code>函数，而是实现一个<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L241"><code>plugin_requires</code></a>和<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/application.hpp#L244"><code>plugin_startup</code></a>。而事实上如果我们观察示例程序，发现其并没有实现<code>plugin_requires</code>函数，这个函数事实上是实现了的，由一个<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L47"><code>APPBASE_PLUGIN_REQUIRES</code></a>宏来实现，这个宏极大的简化了声明依赖的过程，只需要提供一个依赖的插件的类型的列表即可，我的代码注释中有对<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/include/appbase/plugin.hpp#L11">这个宏的简单解释</a>，你也可是尝试展开这个宏。经过这个宏的简化，实际上必须有用户自己完成的只有<code>plugin_startup</code>这个函数了，这里给用户一个机会来完成插件自身在启动前要完成的工作。</p>
+<p>需要注意的是，插件的调用顺序是与注册的顺序相同的。</p>
+<h2 id="4-进入事件等待"><a href="#4-进入事件等待" class="headerlink" title="4. 进入事件等待"></a>4. 进入事件等待</h2><p><a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L229"><code>application::exec</code></a>函数启动一个<code>boost::asio::io_service</code>并监听了几个信号：<code>SIGINT / SIGTERM / SIGPIPE</code>，并阻塞在<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L249"><code>io_serv-&gt;run();</code></a> 这行代码，当进程收到这几个信号中的一个的时候，阻塞函数返回，并进入<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L210"><code>shutdown</code></a>函数。</p>
+<h2 id="5-程序退出"><a href="#5-程序退出" class="headerlink" title="5. 程序退出"></a>5. 程序退出</h2><p>观察示例代码我们发现并没有显式调用<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/application.cpp#L210"><code>application::shutdown</code></a>函数，实际上这是由上一步骤中监听的事件来触发的，也就是类似<code>CTRL+C</code>这样的键盘时间或者<code>kill</code>之类的命令触发的。</p>
+<p>在这个函数中，会逐一的调用插件的<code>shutdown</code>函数，时间上就是用户自己编写的<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase/blob/master/examples/main.cpp#L60"><code>plugin_shutdown</code></a>函数。</p>
+<p>需要注意的是，<code>shutdown</code>中调用插件的顺序是与<code>startup</code>的时候的顺序相反的，也就是注册的相反的顺序。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>综合上述的流程，我们发现基于<code>AppBase</code>编写一个程序主要的工作就是编写插件，而完成一个插件的流程就是如下简单几个步骤：</p>
+<ol>
+<li><p>从<code>appbase::plugin</code>派生</p>
+</li>
+<li><p>用<code>APPBASE_PLUGIN_REQUIRES</code>宏来声明插件的依赖</p>
+</li>
+<li><p>实现<code>plugin_initialize</code></p>
+</li>
+<li><p>实现<code>plugin_startup</code></p>
+</li>
+<li><p>实现<code>plugin_shutdown</code></p>
+</li>
+</ol>
+<p>对于AppBase的实现细节我的fork项目<a target="_blank" rel="noopener" href="https://github.com/andyzhshg/appbase">andyzhshg&#x2F;appbase</a>里的注释解释的比较详细了。其中有一部分是关于<code>method</code>和<code>channel</code>的，<code>AppBase</code>本身的示例并没有演示用法，这篇文章没有解释，也许后续研究EOS的过程中我会回头解释这个设计。</p>
+
+  </div>
+</article>
+
+    <div class="blog-post-comments">
+        <div id="disqus_thread">
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+    </div>
+
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+         
+          <li><a href="/">主页</a></li>
+         
+          <li><a href="/archives/">文章</a></li>
+         
+          <li><a href="/categories/">分类</a></li>
+         
+          <li><a href="/about/">关于</a></li>
+         
+          <li><a href="/search/">🔍 搜索</a></li>
+         
+          <li><a href="/about/xiang-ji-xuan-zhi">💜</a></li>
+        
+      </ul>
+    </div>
+
+    <div id="toc-footer" style="display: none">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#0-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8%E6%B5%81%E7%A8%8B"><span class="toc-number">1.</span> <span class="toc-text">0. 基本使用流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%B3%A8%E5%86%8C%E6%8F%92%E4%BB%B6"><span class="toc-number">2.</span> <span class="toc-text">1. 注册插件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-number">3.</span> <span class="toc-text">2. 初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%90%AF%E5%8A%A8"><span class="toc-number">4.</span> <span class="toc-text">3. 启动</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E8%BF%9B%E5%85%A5%E4%BA%8B%E4%BB%B6%E7%AD%89%E5%BE%85"><span class="toc-number">5.</span> <span class="toc-text">4. 进入事件等待</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%A8%8B%E5%BA%8F%E9%80%80%E5%87%BA"><span class="toc-number">6.</span> <span class="toc-text">5. 程序退出</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">7.</span> <span class="toc-text">总结</span></a></li></ol>
+    </div>
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&text=EOS 代码分析 [1] —— AppBase"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&is_video=false&description=EOS 代码分析 [1] —— AppBase"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=EOS 代码分析 [1] —— AppBase&body=Check out this article: http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/"><i class="fas fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&title=EOS 代码分析 [1] —— AppBase"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&name=EOS 代码分析 [1] —— AppBase&description=&lt;p&gt;&lt;a href=&#34;https://github.com/eosio/appbase&#34;&gt;EOSIO&amp;#x2F;appbase&lt;/a&gt;,如项目介绍所说——&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The AppBase library provides a basic framework for building applications from a set of plugins. AppBase manages the plugin life-cycle and ensures that all plugins are configured, initialized, started, and shutdown in the proper order.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;是一个从一系列插件构建应用的基本框架。 EOS的大多应用都是基于这个框架来构建的。&lt;/p&gt;
+&lt;p&gt;AppBase是独立于EOS项目的一个独立项目，可以单独的编译，我们也可以利用这个框架构建自己的应用。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/06/26/eos-code-read-1-appbase/&t=EOS 代码分析 [1] —— AppBase"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fas fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fas fa-list fa-lg" aria-hidden="true"></i> TOC</a>
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fas fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script> 
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"Copy to clipboard!\">";
+    btn += '<i class="far fa-clone"></i>';
+    btn += '</span>'; 
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "Copied!");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

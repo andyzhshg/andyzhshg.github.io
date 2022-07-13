@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="github 还没有被墙，但是 github 很慢（至少我家的北京电信宽带下情况是这样）。终于忍受不了github 10~50 KB 的下载速度，我在网上找了下设置代理的方法，让 git 命令可以通过 ss 代理拉取 github 的代码。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="如何让git命令通过ss拉取github代码">
+<meta property="og:url" content="http://www.up4dev.com/2018/05/14/github-use-ss/index.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="github 还没有被墙，但是 github 很慢（至少我家的北京电信宽带下情况是这样）。终于忍受不了github 10~50 KB 的下载速度，我在网上找了下设置代理的方法，让 git 命令可以通过 ss 代理拉取 github 的代码。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-05-14T14:26:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="技术">
+<meta property="article:tag" content="git">
+<meta property="article:tag" content="ss">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>如何让git命令通过ss拉取github代码</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="Top" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fas fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="Previous post" href="/2018/05/29/synology-ssl-wildcard-cert-update/"><i class="fas fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="Next post" href="/2018/05/10/install-vmm-on-ds716/"><i class="fas fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="Back to top" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="Share post" href="#"><i class="fas fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">Previous post</span>
+      <span id="i-next" class="info" style="display:none;">Next post</span>
+      <span id="i-top" class="info" style="display:none;">Back to top</span>
+      <span id="i-share" class="info" style="display:none;">Share post</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/05/14/github-use-ss/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/05/14/github-use-ss/&text=如何让git命令通过ss拉取github代码"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/05/14/github-use-ss/&is_video=false&description=如何让git命令通过ss拉取github代码"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=如何让git命令通过ss拉取github代码&body=Check out this article: http://www.up4dev.com/2018/05/14/github-use-ss/"><i class="fas fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/05/14/github-use-ss/&name=如何让git命令通过ss拉取github代码&description=&lt;p&gt;&lt;code&gt;github&lt;/code&gt; 还没有被墙，但是 &lt;code&gt;github&lt;/code&gt; 很慢（至少我家的北京电信宽带下情况是这样）。终于忍受不了&lt;code&gt;github&lt;/code&gt; 10~50 KB 的下载速度，我在网上找了下设置代理的方法，让 &lt;code&gt;git&lt;/code&gt; 命令可以通过 &lt;code&gt;ss&lt;/code&gt; 代理拉取 &lt;code&gt;github&lt;/code&gt; 的代码。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/05/14/github-use-ss/&t=如何让git命令通过ss拉取github代码"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    <div id="toc">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%9E%84%E5%BB%BA%E9%A1%B9%E7%9B%AE%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">1. 构建项目目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E8%AE%BE%E7%BD%AE-ss-%E4%BB%A3%E7%90%86"><span class="toc-number">2.</span> <span class="toc-text">2. 设置 ss 代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%8B%89%E5%8F%96%E4%BB%A3%E7%A0%81"><span class="toc-number">3.</span> <span class="toc-text">3. 拉取代码</span></a></li></ol>
+    </div>
+  </span>
+</div>
+
+    
+    <div class="content index py4">
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle" itemprop="name headline">
+        如何让git命令通过ss拉取github代码
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span itemprop="name">andyzhshg</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2018-05-14T14:26:00.000Z" itemprop="datePublished">2018-05-14</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fas fa-archive"></i>
+        <a class="category-link" href="/categories/%E6%B3%9B%E6%8A%80%E6%9C%AF/">泛技术</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fas fa-tag"></i>
+        <a class="tag-link-link" href="/tags/git/" rel="tag">git</a>, <a class="tag-link-link" href="/tags/ss/" rel="tag">ss</a>, <a class="tag-link-link" href="/tags/%E6%8A%80%E6%9C%AF/" rel="tag">技术</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content" itemprop="articleBody">
+    <p><code>github</code> 还没有被墙，但是 <code>github</code> 很慢（至少我家的北京电信宽带下情况是这样）。终于忍受不了<code>github</code> 10~50 KB 的下载速度，我在网上找了下设置代理的方法，让 <code>git</code> 命令可以通过 <code>ss</code> 代理拉取 <code>github</code> 的代码。</p>
+<span id="more"></span>
+
+<p>我们从 <code>clone</code> 一个全新的项目开始。</p>
+<blockquote>
+<p>这里其实是针对特定项目设置代理的方法，其实也可以设置全局的代理，这样每个项目就跟不设置代理时一样操作就可以了，我不想每个项目都走代理（因为我有一些不托管在 <code>github</code> 的项目），所以才会分开设置。设置全局代理的方法，可以参考我在文末给出的参考链接。</p>
+</blockquote>
+<h2 id="1-构建项目目录"><a href="#1-构建项目目录" class="headerlink" title="1. 构建项目目录"></a>1. 构建项目目录</h2><p>一般情况下，我们克隆一个项目都是直接通过 <code>git clone</code> 命令，像这样：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> git@github.com:YourName/YourRepo.git</span><br></pre></td></tr></table></figure>
+
+<p>或者这样</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/YourName/YourRepo.git</span><br></pre></td></tr></table></figure>
+
+<p><code>git clone</code>命令会创建一个目录并将项目的代码数据拉取到这个目录中，这样的话我们还没有机会给项目设置代理，就已经开始从网络获取数据了。所以这里我将这个步骤做了一下分解。</p>
+<p>我们通过下边的步骤来初始化项目</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 首先创建一个空的项目目录</span></span><br><span class="line"><span class="built_in">mkdir</span> YourRepo</span><br><span class="line"><span class="built_in">cd</span> YourRepo</span><br><span class="line"><span class="comment"># 初始化git环境</span></span><br><span class="line">git init</span><br><span class="line"><span class="comment"># 添加远端分支</span></span><br><span class="line">git remote add master git@github.com:YourName/YourRepo.git</span><br><span class="line"><span class="comment"># 或者</span></span><br><span class="line">git remote add master https://github.com/YourName/YourRepo.git</span><br></pre></td></tr></table></figure>
+
+<p>这样我们就初始化好了一个项目，下一步我们将为这个项目设置 <code>ss</code> 代理。</p>
+<h2 id="2-设置-ss-代理"><a href="#2-设置-ss-代理" class="headerlink" title="2. 设置 ss 代理"></a>2. 设置 <code>ss</code> 代理</h2><p>设置代理的方式很简单就一条命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git config http.proxy <span class="string">&#x27;socks5://127.0.0.1:1080&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>上面对应的是通过http协议的方法，对应git协议，通过下边的命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git config core.gitProxy  <span class="string">&#x27;socks5://127.0.0.1:1080&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="3-拉取代码"><a href="#3-拉取代码" class="headerlink" title="3. 拉取代码"></a>3. 拉取代码</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git pull</span><br></pre></td></tr></table></figure>
+
+<p>到这里基本上就讲完了，如果是一个已经存在的项目，之前没有走代理，现在想走代理，那么其实更简单，略过第1步，从第2步开始即可。</p>
+<blockquote>
+<p>如果是新建项目，执行完 <code>git pull</code> 后可能发现目录是空的，这是因为项目此时没有在任何一个指定的分支下，只要执行形如 <code>git checkout master</code> 命令来把项目切到一个分支即可。</p>
+</blockquote>
+<p><em>参考：</em> <a target="_blank" rel="noopener" href="http://www.afox.cc/archives/404">Git搭配shadowsocks使用代理访问github</a></p>
+<p>[^update 2019.02.15]: <a href="/2019/02/15/mac-term-ss/">这篇文章</a> 提到的方法可能是mac上一个更加便捷且普适的方法。</p>
+
+  </div>
+</article>
+
+    <div class="blog-post-comments">
+        <div id="disqus_thread">
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+    </div>
+
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+         
+          <li><a href="/">主页</a></li>
+         
+          <li><a href="/archives/">文章</a></li>
+         
+          <li><a href="/categories/">分类</a></li>
+         
+          <li><a href="/about/">关于</a></li>
+         
+          <li><a href="/search/">🔍 搜索</a></li>
+         
+          <li><a href="/about/xiang-ji-xuan-zhi">💜</a></li>
+        
+      </ul>
+    </div>
+
+    <div id="toc-footer" style="display: none">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%9E%84%E5%BB%BA%E9%A1%B9%E7%9B%AE%E7%9B%AE%E5%BD%95"><span class="toc-number">1.</span> <span class="toc-text">1. 构建项目目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E8%AE%BE%E7%BD%AE-ss-%E4%BB%A3%E7%90%86"><span class="toc-number">2.</span> <span class="toc-text">2. 设置 ss 代理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%8B%89%E5%8F%96%E4%BB%A3%E7%A0%81"><span class="toc-number">3.</span> <span class="toc-text">3. 拉取代码</span></a></li></ol>
+    </div>
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/05/14/github-use-ss/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/05/14/github-use-ss/&text=如何让git命令通过ss拉取github代码"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/05/14/github-use-ss/&is_video=false&description=如何让git命令通过ss拉取github代码"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=如何让git命令通过ss拉取github代码&body=Check out this article: http://www.up4dev.com/2018/05/14/github-use-ss/"><i class="fas fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/05/14/github-use-ss/&title=如何让git命令通过ss拉取github代码"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/05/14/github-use-ss/&name=如何让git命令通过ss拉取github代码&description=&lt;p&gt;&lt;code&gt;github&lt;/code&gt; 还没有被墙，但是 &lt;code&gt;github&lt;/code&gt; 很慢（至少我家的北京电信宽带下情况是这样）。终于忍受不了&lt;code&gt;github&lt;/code&gt; 10~50 KB 的下载速度，我在网上找了下设置代理的方法，让 &lt;code&gt;git&lt;/code&gt; 命令可以通过 &lt;code&gt;ss&lt;/code&gt; 代理拉取 &lt;code&gt;github&lt;/code&gt; 的代码。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/05/14/github-use-ss/&t=如何让git命令通过ss拉取github代码"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fas fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fas fa-list fa-lg" aria-hidden="true"></i> TOC</a>
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fas fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script> 
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"Copy to clipboard!\">";
+    btn += '<i class="far fa-clone"></i>';
+    btn += '</span>'; 
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "Copied!");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

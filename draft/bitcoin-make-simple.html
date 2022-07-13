@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="比特币诞生短短8年，从一个仅在小众极客圈里流行的小玩意儿，逐渐变成了几乎像我丈母娘这样的生活在县城的老太太都听说过的流行的东西。 虽然人人都在谈论比特币，但是能讲明白比特币到底是什么的，恐怕并不是很多，包括那些炒币炒的热火朝天的炒家们。 本文尝试用通俗的方式来解释一下比特币的技术原理，至于比特币为什么这么火，为什么这么值钱，不是本文的讨论内容，我的能力也解释不了。 我们先来提炼一下比特币诞生的愿景">
+<meta property="og:type" content="website">
+<meta property="og:title" content="白话比特币">
+<meta property="og:url" content="http://www.up4dev.com/draft/bitcoin-make-simple.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="比特币诞生短短8年，从一个仅在小众极客圈里流行的小玩意儿，逐渐变成了几乎像我丈母娘这样的生活在县城的老太太都听说过的流行的东西。 虽然人人都在谈论比特币，但是能讲明白比特币到底是什么的，恐怕并不是很多，包括那些炒币炒的热火朝天的炒家们。 本文尝试用通俗的方式来解释一下比特币的技术原理，至于比特币为什么这么火，为什么这么值钱，不是本文的讨论内容，我的能力也解释不了。 我们先来提炼一下比特币诞生的愿景">
+<meta property="og:locale">
+<meta property="article:published_time" content="2017-05-25T15:25:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="区块链">
+<meta property="article:tag" content="比特币">
+<meta property="article:tag" content="BitCoin">
+<meta property="article:tag" content="技术">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>白话比特币</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+    <div class="content index py4">
+        
+          <header id="header">
+  <a href="/">
+  
+    
+      <div id="logo" style="background-image: url(/assets/up4dev-logo-180.png);"></div>
+    
+  
+    <div id="title">
+      <h1>UP4DEV</h1>
+    </div>
+  </a>
+  <div id="nav">
+    <ul>
+      <li class="icon">
+        <a href="#" aria-label="Menu"><i class="fas fa-bars fa-2x"></i></a>
+      </li>
+      <!--
+     --><li><a href="/">主页</a></li><!--
+   --><!--
+     --><li><a href="/archives/">文章</a></li><!--
+   --><!--
+     --><li><a href="/categories/">分类</a></li><!--
+   --><!--
+     --><li><a href="/about/">关于</a></li><!--
+   --><!--
+     --><li><a href="/search/">🔍 搜索</a></li><!--
+   --><!--
+     --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+   -->
+    </ul>
+  </div>
+</header>
+
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  
+
+  <div class="content" itemprop="articleBody">
+      
+          <p>比特币诞生短短8年，从一个仅在小众极客圈里流行的小玩意儿，逐渐变成了几乎像我丈母娘这样的生活在县城的老太太都听说过的流行的东西。</p>
+<p>虽然人人都在谈论比特币，但是能讲明白比特币到底是什么的，恐怕并不是很多，包括那些炒币炒的热火朝天的炒家们。</p>
+<p>本文尝试用通俗的方式来解释一下比特币的技术原理，至于比特币为什么这么火，为什么这么值钱，不是本文的讨论内容，我的能力也解释不了。</p>
+<p>我们先来提炼一下比特币诞生的愿景：构建一种去中心化的无需中央机构的电子现金系统。</p>
+<p>上边这句话看不懂不要紧，我们一步一步来解释。</p>
+<p>要理解这句话，我们首先来了解下现实社会中的货币系统是如何运作的。</p>
+<p>货币由国家发行，国家会尽力的保证货币的实际价值<br>现在的货币，发行方是国家，攥在手里的现金之所以被认为有价值，是因为由国家在后面为其背书，也就是说我们信任国家可以保证我们的钞票的价值。</p>
+<p>与之类似，很多商家会发行代金券，这些代金券本质上就是几张纸而已，我们之所以会去用真金白银购买，也是因为</p>
+<h2 id="电子现金系统"><a href="#电子现金系统" class="headerlink" title="电子现金系统"></a>电子现金系统</h2><p>所谓电子现金系统，我们可以类比一下银行系统。</p>
+<p>如果不考虑物理现金，自考虑电子账户的话，以用户的视角来说，银行要做的，核心是两件事：</p>
+<ul>
+<li>记录——记住我的账户上有多少钱</li>
+<li>转账——我转账给别人，别人转账给我</li>
+</ul>
+<p>简化点来说，你存在银行里的钱，其实就是银行系统里的一个数字，你转账给别人，就是在你的系统账户上减掉一个数字，在对方的账户上加上一个数字。</p>
+<p>比特币核心要做的也是这两件事，记录和转账。</p>
+<h2 id="去中心化"><a href="#去中心化" class="headerlink" title="去中心化"></a>去中心化</h2><p>传统的银行，数据是存储在银行自己的中心化的服务器上的，也就是说，如果银行的服务器出现了故障，那么，你的账户数据也很可能会受到影响(当然这种事情发生的)。</p>
+
+        
+  </div>
+</article>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

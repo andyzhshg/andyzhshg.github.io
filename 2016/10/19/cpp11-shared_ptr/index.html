@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="C++11新引入了几种智能指针：unique_ptr，shared_ptr和weak_ptr，而原来的auto_ptr被弃用。 我会写几篇文章分别来介绍这几种智能指针的用法，本篇主要介绍shared_ptr。 shared_ptr可以说是我们最常规意义上理解的智能指针了，区别于unique_ptr，share_ptr有拷贝构造函数和赋值操作符，每当shared_ptr多出一个拷贝，所有拷贝的引用计">
+<meta property="og:type" content="article">
+<meta property="og:title" content="C++11的智能指针(2) shared_ptr">
+<meta property="og:url" content="http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/index.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="C++11新引入了几种智能指针：unique_ptr，shared_ptr和weak_ptr，而原来的auto_ptr被弃用。 我会写几篇文章分别来介绍这几种智能指针的用法，本篇主要介绍shared_ptr。 shared_ptr可以说是我们最常规意义上理解的智能指针了，区别于unique_ptr，share_ptr有拷贝构造函数和赋值操作符，每当shared_ptr多出一个拷贝，所有拷贝的引用计">
+<meta property="og:locale">
+<meta property="article:published_time" content="2016-10-19T15:17:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="技术">
+<meta property="article:tag" content="C++">
+<meta property="article:tag" content="C++0x">
+<meta property="article:tag" content="智能指针">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>C++11的智能指针(2) shared_ptr</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="Top" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fas fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="Previous post" href="/2017/01/09/bitcoin-code-review-plan/"><i class="fas fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="Next post" href="/2016/10/15/vmware-fusion-static-ip/"><i class="fas fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="Back to top" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="Share post" href="#"><i class="fas fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">Previous post</span>
+      <span id="i-next" class="info" style="display:none;">Next post</span>
+      <span id="i-top" class="info" style="display:none;">Back to top</span>
+      <span id="i-share" class="info" style="display:none;">Share post</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&text=C++11的智能指针(2) shared_ptr"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&is_video=false&description=C++11的智能指针(2) shared_ptr"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=C++11的智能指针(2) shared_ptr&body=Check out this article: http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/"><i class="fas fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&name=C++11的智能指针(2) shared_ptr&description=&lt;p&gt;C++11新引入了几种智能指针：&lt;code&gt;unique_ptr&lt;/code&gt;，&lt;code&gt;shared_ptr&lt;/code&gt;和&lt;code&gt;weak_ptr&lt;/code&gt;，而原来的&lt;code&gt;auto_ptr&lt;/code&gt;被弃用。&lt;/p&gt;
+&lt;p&gt;我会写几篇文章分别来介绍这几种智能指针的用法，本篇主要介绍&lt;code&gt;shared_ptr&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;shared_ptr&lt;/code&gt;可以说是我们最常规意义上理解的智能指针了，区别于&lt;code&gt;unique_ptr&lt;/code&gt;，&lt;code&gt;share_ptr&lt;/code&gt;有拷贝构造函数和赋值操作符，每当&lt;code&gt;shared_ptr&lt;/code&gt;多出一个拷贝，所有拷贝的引用计数都会增加。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&t=C++11的智能指针(2) shared_ptr"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    <div id="toc">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#shared-ptr%E7%9A%84%E5%B8%B8%E8%A7%84%E7%94%A8%E6%B3%95"><span class="toc-number">1.</span> <span class="toc-text">shared_ptr的常规用法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2"><span class="toc-number">2.</span> <span class="toc-text">类型转换</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%87%AA%E5%B7%B1%E5%AE%9E%E7%8E%B0%E4%B8%80%E4%B8%AAshared-ptr"><span class="toc-number">3.</span> <span class="toc-text">自己实现一个shared_ptr</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#C-11%E7%9A%84%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88%E7%B3%BB%E5%88%97%E6%96%87%E7%AB%A0"><span class="toc-number">4.</span> <span class="toc-text">C++11的智能指针系列文章</span></a></li></ol>
+    </div>
+  </span>
+</div>
+
+    
+    <div class="content index py4">
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle" itemprop="name headline">
+        C++11的智能指针(2) shared_ptr
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span itemprop="name">andyzhshg</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2016-10-19T15:17:00.000Z" itemprop="datePublished">2016-10-19</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fas fa-archive"></i>
+        <a class="category-link" href="/categories/C/">C++</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fas fa-tag"></i>
+        <a class="tag-link-link" href="/tags/C/" rel="tag">C++</a>, <a class="tag-link-link" href="/tags/C-0x/" rel="tag">C++0x</a>, <a class="tag-link-link" href="/tags/%E6%8A%80%E6%9C%AF/" rel="tag">技术</a>, <a class="tag-link-link" href="/tags/%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88/" rel="tag">智能指针</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content" itemprop="articleBody">
+    <p>C++11新引入了几种智能指针：<code>unique_ptr</code>，<code>shared_ptr</code>和<code>weak_ptr</code>，而原来的<code>auto_ptr</code>被弃用。</p>
+<p>我会写几篇文章分别来介绍这几种智能指针的用法，本篇主要介绍<code>shared_ptr</code>。</p>
+<p><code>shared_ptr</code>可以说是我们最常规意义上理解的智能指针了，区别于<code>unique_ptr</code>，<code>share_ptr</code>有拷贝构造函数和赋值操作符，每当<code>shared_ptr</code>多出一个拷贝，所有拷贝的引用计数都会增加。</p>
+<span id="more"></span>
+
+<h2 id="shared-ptr的常规用法"><a href="#shared-ptr的常规用法" class="headerlink" title="shared_ptr的常规用法"></a><code>shared_ptr</code>的常规用法</h2><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// example1.cpp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Test</span>(<span class="type">int</span> tag) : _tag(tag) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ~<span class="built_in">Test</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::~Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="type">int</span> _tag;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function">std::shared_ptr&lt;Test&gt; <span class="title">p1</span><span class="params">(<span class="keyword">new</span> Test(<span class="number">1</span>))</span></span>;</span><br><span class="line">    p1-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    std::shared_ptr&lt;Test&gt; p2 = std::<span class="built_in">make_shared</span>&lt;Test&gt;(<span class="number">2</span>);</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    </span><br><span class="line">    std::shared_ptr&lt;Test&gt; p3 = p1;</span><br><span class="line">    p3-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p1.<span class="built_in">reset</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p2 = p3;</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">g++ -o example1 -std=c++11 example1.cpp</span><br></pre></td></tr></table></figure>
+
+<p>运行结果</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">Test::Test() 1			</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:1						(1)</span><br><span class="line">----------------</span><br><span class="line">Test::Test() 2</span><br><span class="line">Test::test() 2</span><br><span class="line">p2:1						(2)</span><br><span class="line">----------------</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:2</span><br><span class="line">p3:2						(3)</span><br><span class="line">----------------</span><br><span class="line">p1:0</span><br><span class="line">p3:1						(4)</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 2</span><br><span class="line">Test::test() 1</span><br><span class="line">p2:2</span><br><span class="line">p3:2						(5)</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 1		(6)</span><br></pre></td></tr></table></figure>
+
+<p>(1) 展示了用<code>shared_ptr</code>的构造函数来生成一个<code>shared_ptr</code>对象，并且我们看到他的引用计数现在是<code>1</code>。</p>
+<p>(2) 展示了用<code>make_shared</code>来生成一个<code>shared_ptr</code>，可以看到，这里我们终于彻底告别了<code>new</code>，是不是感觉有点暗爽。</p>
+<p>(3) 展示了<code>shared_ptr</code>的赋值操作，我们看到，赋值之后，<code>p1</code>和<code>p3</code>的引用计数都增加到了<code>2</code>。</p>
+<p>(4) <code>reset</code>操作使得<code>p1</code>变为空的，所以它的引用计数为<code>0</code>，而<code>p3</code>的引用计数则减少到了1，此时的<code>p1</code>和<code>p3</code>已经完全不是一回事了。</p>
+<p>(5) <code>p2 = p3</code>的操作使得<code>p2</code>原来指向的对象被释放，所以我们首先看到一条析构函数的输出。然后我们看到<code>p2</code> <code>p3</code>的的引用计数都变成了<code>2</code>。</p>
+<p>(6) 程序退出的时候，很自然的，所有的智能指针都出了作用域，所以最后一条析构调用被输出。</p>
+<h2 id="类型转换"><a href="#类型转换" class="headerlink" title="类型转换"></a>类型转换</h2><p>假设我们两个类</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;memory&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Base</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Base</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Base::Base()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">Base</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Base::~Base()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Base::test()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Derived</span> : <span class="keyword">public</span> Base &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Derived</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Derived::Derived()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    ~<span class="built_in">Derived</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Derived::~Derived()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">virtual</span> <span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Derived::test()&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    std::shared_ptr&lt;Base&gt; pb = std::<span class="built_in">make_shared</span>&lt;Base&gt;();</span><br><span class="line">    std::shared_ptr&lt;Derived&gt; pd = std::<span class="built_in">make_shared</span>&lt;Derived&gt;();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pb.use_count() &quot;</span> &lt;&lt; pb.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pd.use_count() &quot;</span> &lt;&lt; pd.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    pb = <span class="built_in">static_cast</span>&lt;Base&gt;(pd);</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pb.use_count() &quot;</span> &lt;&lt; pb.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;pd.use_count() &quot;</span> &lt;&lt; pd.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    pb-&gt;<span class="built_in">test</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>用static_cast, dynamic_cast, const_cast是无法用在不同的shared_ptr之上的。</p>
+<h2 id="自己实现一个shared-ptr"><a href="#自己实现一个shared-ptr" class="headerlink" title="自己实现一个shared_ptr"></a>自己实现一个<code>shared_ptr</code></h2><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//shared_ptr.h</span></span><br><span class="line"><span class="keyword">namespace</span> up4dev &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;</span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">shared_ptr</span> &#123;</span><br><span class="line">        <span class="keyword">public</span>:</span><br><span class="line">            <span class="built_in">shared_ptr</span>() : _p(<span class="literal">nullptr</span>), _c(<span class="literal">nullptr</span>)&#123;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            ~<span class="built_in">shared_ptr</span>() &#123;</span><br><span class="line">                <span class="built_in">reset</span>();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="built_in">shared_ptr</span>(T* p) : _p(p), _c(<span class="keyword">new</span> <span class="built_in">int</span>(<span class="number">1</span>)) &#123;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="built_in">shared_ptr</span>(<span class="type">const</span> shared_ptr&amp; sp) &#123;</span><br><span class="line">                <span class="built_in">reset</span>();</span><br><span class="line">                _p = sp._p;</span><br><span class="line">                _c = sp._c;</span><br><span class="line">                *_c += <span class="number">1</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            shared_ptr&amp; <span class="keyword">operator</span>=(<span class="type">const</span> shared_ptr&amp; sp) &#123;</span><br><span class="line">                <span class="built_in">reset</span>();</span><br><span class="line">                _p = sp._p;</span><br><span class="line">                _c = sp._c;</span><br><span class="line">                *_c += <span class="number">1</span>;</span><br><span class="line">                <span class="keyword">return</span> *<span class="keyword">this</span>;                </span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function">T* <span class="title">get</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                <span class="keyword">return</span> _p;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            T* <span class="keyword">operator</span>-&gt;() &#123;</span><br><span class="line">                <span class="keyword">return</span> _p;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function"><span class="type">void</span> <span class="title">reset</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                <span class="keyword">if</span> (_c) &#123;</span><br><span class="line">                    *_c -= <span class="number">1</span>;</span><br><span class="line">                    <span class="keyword">if</span> (*_c == <span class="number">0</span>) &#123;</span><br><span class="line">                        <span class="keyword">delete</span> _p;</span><br><span class="line">                        <span class="keyword">delete</span> _c;</span><br><span class="line">                    &#125;</span><br><span class="line">                    _p = <span class="literal">nullptr</span>;</span><br><span class="line">                    _c = <span class="literal">nullptr</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="function"><span class="type">int</span> <span class="title">use_count</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                <span class="keyword">return</span> _c ? *_c : <span class="number">0</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">private</span>:</span><br><span class="line">            T* _p;</span><br><span class="line">            <span class="type">int</span>* _c;</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>对前文的测试用例稍加修改，用新写的shared_ptr来替换标准库的实现</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//example3.cpp</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;shared_ptr.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="built_in">Test</span>(<span class="type">int</span> tag) : _tag(tag) &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ~<span class="built_in">Test</span>() &#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::~Test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        std::cout &lt;&lt; <span class="string">&quot;Test::test() &quot;</span> &lt;&lt; _tag &lt;&lt; std::endl;</span><br><span class="line">    &#125;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="type">int</span> _tag;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="function">up4dev::shared_ptr&lt;Test&gt; <span class="title">p1</span><span class="params">(<span class="keyword">new</span> Test(<span class="number">1</span>))</span></span>;</span><br><span class="line">    p1-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    up4dev::shared_ptr&lt;Test&gt; p2 = up4dev::<span class="built_in">shared_ptr</span>&lt;Test&gt;(<span class="keyword">new</span> <span class="built_in">Test</span>(<span class="number">2</span>));</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line">    </span><br><span class="line">    up4dev::shared_ptr&lt;Test&gt; p3 = p1;</span><br><span class="line">    p3-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p1.<span class="built_in">reset</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p1:&quot;</span> &lt;&lt; p1.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    p2 = p3;</span><br><span class="line">    p2-&gt;<span class="built_in">test</span>();</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p2:&quot;</span> &lt;&lt; p2.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;p3:&quot;</span> &lt;&lt; p3.<span class="built_in">use_count</span>() &lt;&lt; std::endl;</span><br><span class="line">    std::cout &lt;&lt; <span class="string">&quot;----------------&quot;</span> &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">g++ -o example3 -std=c++11 example3.cpp</span><br></pre></td></tr></table></figure>
+
+<p>运行结果</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">Test::Test() 1</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:1</span><br><span class="line">----------------</span><br><span class="line">Test::Test() 2</span><br><span class="line">Test::test() 2</span><br><span class="line">p2:1</span><br><span class="line">----------------</span><br><span class="line">Test::test() 1</span><br><span class="line">p1:2</span><br><span class="line">p3:2</span><br><span class="line">----------------</span><br><span class="line">p1:0</span><br><span class="line">p3:1</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 2</span><br><span class="line">Test::test() 1</span><br><span class="line">p2:2</span><br><span class="line">p3:2</span><br><span class="line">----------------</span><br><span class="line">Test::~Test() 1</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+
+<h2 id="C-11的智能指针系列文章"><a href="#C-11的智能指针系列文章" class="headerlink" title="C++11的智能指针系列文章"></a>C++11的智能指针系列文章</h2><ul>
+<li><p><a href="http://www.up4dev.com/2016/10/09/cpp11-unique_ptr/">C++11的智能指针(1) unique_ptr</a></p>
+</li>
+<li><p><a href="#">C++11的智能指针(2) shared_ptr</a></p>
+</li>
+</ul>
+
+  </div>
+</article>
+
+    <div class="blog-post-comments">
+        <div id="disqus_thread">
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+    </div>
+
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+         
+          <li><a href="/">主页</a></li>
+         
+          <li><a href="/archives/">文章</a></li>
+         
+          <li><a href="/categories/">分类</a></li>
+         
+          <li><a href="/about/">关于</a></li>
+         
+          <li><a href="/search/">🔍 搜索</a></li>
+         
+          <li><a href="/about/xiang-ji-xuan-zhi">💜</a></li>
+        
+      </ul>
+    </div>
+
+    <div id="toc-footer" style="display: none">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#shared-ptr%E7%9A%84%E5%B8%B8%E8%A7%84%E7%94%A8%E6%B3%95"><span class="toc-number">1.</span> <span class="toc-text">shared_ptr的常规用法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%B1%BB%E5%9E%8B%E8%BD%AC%E6%8D%A2"><span class="toc-number">2.</span> <span class="toc-text">类型转换</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%87%AA%E5%B7%B1%E5%AE%9E%E7%8E%B0%E4%B8%80%E4%B8%AAshared-ptr"><span class="toc-number">3.</span> <span class="toc-text">自己实现一个shared_ptr</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#C-11%E7%9A%84%E6%99%BA%E8%83%BD%E6%8C%87%E9%92%88%E7%B3%BB%E5%88%97%E6%96%87%E7%AB%A0"><span class="toc-number">4.</span> <span class="toc-text">C++11的智能指针系列文章</span></a></li></ol>
+    </div>
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&text=C++11的智能指针(2) shared_ptr"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&is_video=false&description=C++11的智能指针(2) shared_ptr"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=C++11的智能指针(2) shared_ptr&body=Check out this article: http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/"><i class="fas fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&title=C++11的智能指针(2) shared_ptr"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&name=C++11的智能指针(2) shared_ptr&description=&lt;p&gt;C++11新引入了几种智能指针：&lt;code&gt;unique_ptr&lt;/code&gt;，&lt;code&gt;shared_ptr&lt;/code&gt;和&lt;code&gt;weak_ptr&lt;/code&gt;，而原来的&lt;code&gt;auto_ptr&lt;/code&gt;被弃用。&lt;/p&gt;
+&lt;p&gt;我会写几篇文章分别来介绍这几种智能指针的用法，本篇主要介绍&lt;code&gt;shared_ptr&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;shared_ptr&lt;/code&gt;可以说是我们最常规意义上理解的智能指针了，区别于&lt;code&gt;unique_ptr&lt;/code&gt;，&lt;code&gt;share_ptr&lt;/code&gt;有拷贝构造函数和赋值操作符，每当&lt;code&gt;shared_ptr&lt;/code&gt;多出一个拷贝，所有拷贝的引用计数都会增加。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2016/10/19/cpp11-shared_ptr/&t=C++11的智能指针(2) shared_ptr"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fas fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fas fa-list fa-lg" aria-hidden="true"></i> TOC</a>
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fas fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script> 
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"Copy to clipboard!\">";
+    btn += '<i class="far fa-clone"></i>';
+    btn += '</span>'; 
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "Copied!");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

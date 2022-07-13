@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="etcd 越来越多的被应用在分布式系统中，最典型的一个应用场景就是作为分布式锁，用于在分布式系统中保证资源的独占。 通常的分布式的锁的应用场景有如下几种方式：  即用即申请，用完即释放，一般用于资源控制粒度比较细的系统，这种场景会频繁的调用 etcd 服务 还有一种就是先到先得，得到即长期占有，这种更多是用在主备系统的切换场景，如果占有锁的服务不发生异常，则不会主动与 etcd 交互。  本文主要">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一个用 etcd 作主备锁的细节问题">
+<meta property="og:url" content="http://www.up4dev.com/2019/05/29/etcd-mutex-lock/index.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="etcd 越来越多的被应用在分布式系统中，最典型的一个应用场景就是作为分布式锁，用于在分布式系统中保证资源的独占。 通常的分布式的锁的应用场景有如下几种方式：  即用即申请，用完即释放，一般用于资源控制粒度比较细的系统，这种场景会频繁的调用 etcd 服务 还有一种就是先到先得，得到即长期占有，这种更多是用在主备系统的切换场景，如果占有锁的服务不发生异常，则不会主动与 etcd 交互。  本文主要">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-05-29T08:04:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="技术">
+<meta property="article:tag" content="etcd">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="分布式">
+<meta property="article:tag" content="锁">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>一个用 etcd 作主备锁的细节问题</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="Top" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fas fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="Previous post" href="/2019/06/11/k8s-dashboard-force-english/"><i class="fas fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="Next post" href="/2019/05/16/go-exec-pipeline-support-trick/"><i class="fas fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="Back to top" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="Share post" href="#"><i class="fas fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">Previous post</span>
+      <span id="i-next" class="info" style="display:none;">Next post</span>
+      <span id="i-top" class="info" style="display:none;">Back to top</span>
+      <span id="i-share" class="info" style="display:none;">Share post</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&text=一个用 etcd 作主备锁的细节问题"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&is_video=false&description=一个用 etcd 作主备锁的细节问题"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=一个用 etcd 作主备锁的细节问题&body=Check out this article: http://www.up4dev.com/2019/05/29/etcd-mutex-lock/"><i class="fas fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&name=一个用 etcd 作主备锁的细节问题&description=&lt;p&gt;&lt;code&gt;etcd&lt;/code&gt; 越来越多的被应用在分布式系统中，最典型的一个应用场景就是作为分布式锁，用于在分布式系统中保证资源的独占。&lt;/p&gt;
+&lt;p&gt;通常的分布式的锁的应用场景有如下几种方式：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;即用即申请，用完即释放，一般用于资源控制粒度比较细的系统，这种场景会频繁的调用 &lt;code&gt;etcd&lt;/code&gt; 服务&lt;/li&gt;
+&lt;li&gt;还有一种就是先到先得，得到即长期占有，这种更多是用在主备系统的切换场景，如果占有锁的服务不发生异常，则不会主动与 &lt;code&gt;etcd&lt;/code&gt; 交互。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;本文主要讨论第2种场景中遇到的一个细节问题。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&t=一个用 etcd 作主备锁的细节问题"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    <div id="toc">
+      
+    </div>
+  </span>
+</div>
+
+    
+    <div class="content index py4">
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle" itemprop="name headline">
+        一个用 etcd 作主备锁的细节问题
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span itemprop="name">andyzhshg</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2019-05-29T08:04:00.000Z" itemprop="datePublished">2019-05-29</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fas fa-archive"></i>
+        <a class="category-link" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fas fa-tag"></i>
+        <a class="tag-link-link" href="/tags/etcd/" rel="tag">etcd</a>, <a class="tag-link-link" href="/tags/go/" rel="tag">go</a>, <a class="tag-link-link" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag">分布式</a>, <a class="tag-link-link" href="/tags/%E6%8A%80%E6%9C%AF/" rel="tag">技术</a>, <a class="tag-link-link" href="/tags/%E9%94%81/" rel="tag">锁</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content" itemprop="articleBody">
+    <p><code>etcd</code> 越来越多的被应用在分布式系统中，最典型的一个应用场景就是作为分布式锁，用于在分布式系统中保证资源的独占。</p>
+<p>通常的分布式的锁的应用场景有如下几种方式：</p>
+<ol>
+<li>即用即申请，用完即释放，一般用于资源控制粒度比较细的系统，这种场景会频繁的调用 <code>etcd</code> 服务</li>
+<li>还有一种就是先到先得，得到即长期占有，这种更多是用在主备系统的切换场景，如果占有锁的服务不发生异常，则不会主动与 <code>etcd</code> 交互。</li>
+</ol>
+<p>本文主要讨论第2种场景中遇到的一个细节问题。</p>
+<span id="more"></span>
+
+<p>在主备切换的场景，我们希望服务一旦获取到锁，就不必主动的与 <code>etcd</code> 交互，而是专心的进行自己的本职工作。但是如果不主动跟 <code>etcd</code> 询问持有的锁的状态的话，我们又无法保证当前是确实持有锁的。正如下边的代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;go.etcd.io/etcd/clientv3&quot;</span></span><br><span class="line">	<span class="string">&quot;go.etcd.io/etcd/clientv3/concurrency&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	client, errClient := clientv3.New(clientv3.Config&#123;Endpoints: []<span class="type">string</span>&#123;<span class="string">&quot;http://127.0.0.1:2379&quot;</span>&#125;, DialTimeout: <span class="number">10</span> * time.Second&#125;)</span><br><span class="line">	<span class="keyword">if</span> errClient != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;client create fail - %v&quot;</span>, errClient)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	session, errSession := concurrency.NewSession(client, concurrency.WithTTL(<span class="number">10</span>))</span><br><span class="line">	<span class="keyword">if</span> errSession != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;create session fail - %v&quot;</span>, errSession)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	mutex := concurrency.NewMutex(session, <span class="string">&quot;/lock&quot;</span>)</span><br><span class="line">	<span class="keyword">if</span> mutex == <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;create mutex fail&quot;</span>)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	errMutex := mutex.Lock(context.TODO())</span><br><span class="line">	<span class="keyword">if</span> errMutex != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;lock fail - %v&quot;</span>, errMutex)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;got lock, begin run work&quot;</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">// do real work here</span></span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// prevent progress quit</span></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>在 <code>// do real work here</code> 执行过程中，很可能我们的网络状态出现了问题，或者 <code>etcd</code> 服务出现问题导致程序已经跟网络断开，这时实际上锁很可能已经失效了。为了保证锁的有效性，我们可以在<code>session</code>的有效期内轮询锁的状态，但是这种做法很繁琐，也比较浪费资源。有没有更好的方式呢？</p>
+<p>好在 <code>session</code> 提供了一个 <code>Done</code> 方法，该方法返回一个 <code>channel</code> ， 一旦 <code>session</code> 结束，这个 <code>channel</code> 就会被写入内容，这样就给了我们一个简单地方法来监控锁的状态。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;context&quot;</span></span><br><span class="line">	<span class="string">&quot;fmt&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line"></span><br><span class="line">	<span class="string">&quot;go.etcd.io/etcd/clientv3&quot;</span></span><br><span class="line">	<span class="string">&quot;go.etcd.io/etcd/clientv3/concurrency&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	client, errClient := clientv3.New(clientv3.Config&#123;Endpoints: []<span class="type">string</span>&#123;<span class="string">&quot;http://127.0.0.1:2379&quot;</span>&#125;, DialTimeout: <span class="number">10</span> * time.Second&#125;)</span><br><span class="line">	<span class="keyword">if</span> errClient != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;client create fail - %v&quot;</span>, errClient)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	session, errSession := concurrency.NewSession(client, concurrency.WithTTL(<span class="number">10</span>))</span><br><span class="line">	<span class="keyword">if</span> errSession != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;create session fail - %v&quot;</span>, errSession)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	mutex := concurrency.NewMutex(session, <span class="string">&quot;/lock&quot;</span>)</span><br><span class="line">	<span class="keyword">if</span> mutex == <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;create mutex fail&quot;</span>)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	errMutex := mutex.Lock(context.TODO())</span><br><span class="line">	<span class="keyword">if</span> errMutex != <span class="literal">nil</span> &#123;</span><br><span class="line">		fmt.Errorf(<span class="string">&quot;lock fail - %v&quot;</span>, errMutex)</span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	fmt.Println(<span class="string">&quot;got lock, begin run work&quot;</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="keyword">select</span> &#123;</span><br><span class="line">		<span class="keyword">case</span> &lt;-session.Done():</span><br><span class="line">			<span class="comment">// do what ever you want to process lock lost</span></span><br><span class="line">			fmt.Println(<span class="string">&quot;lock lost&quot;</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		<span class="comment">// do real work</span></span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="comment">// prevent progress quit</span></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如上边的代码所示，我们在一个 <code>goroutine</code> 中监听一个 <code>&lt;-session.Done()</code> 的 <code>channel</code> ，这样，一旦锁出现了问题，就会得到通知，这样就可以在这里进行一些锁丢失的善后工作，比如在这里停止所有的需要锁才能进行的工作，这样就不会出现锁已经失效，但是工作进程却全然不知的状况了。</p>
+
+  </div>
+</article>
+
+    <div class="blog-post-comments">
+        <div id="disqus_thread">
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+    </div>
+
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+         
+          <li><a href="/">主页</a></li>
+         
+          <li><a href="/archives/">文章</a></li>
+         
+          <li><a href="/categories/">分类</a></li>
+         
+          <li><a href="/about/">关于</a></li>
+         
+          <li><a href="/search/">🔍 搜索</a></li>
+         
+          <li><a href="/about/xiang-ji-xuan-zhi">💜</a></li>
+        
+      </ul>
+    </div>
+
+    <div id="toc-footer" style="display: none">
+      
+    </div>
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&text=一个用 etcd 作主备锁的细节问题"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&is_video=false&description=一个用 etcd 作主备锁的细节问题"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=一个用 etcd 作主备锁的细节问题&body=Check out this article: http://www.up4dev.com/2019/05/29/etcd-mutex-lock/"><i class="fas fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&title=一个用 etcd 作主备锁的细节问题"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&name=一个用 etcd 作主备锁的细节问题&description=&lt;p&gt;&lt;code&gt;etcd&lt;/code&gt; 越来越多的被应用在分布式系统中，最典型的一个应用场景就是作为分布式锁，用于在分布式系统中保证资源的独占。&lt;/p&gt;
+&lt;p&gt;通常的分布式的锁的应用场景有如下几种方式：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;即用即申请，用完即释放，一般用于资源控制粒度比较细的系统，这种场景会频繁的调用 &lt;code&gt;etcd&lt;/code&gt; 服务&lt;/li&gt;
+&lt;li&gt;还有一种就是先到先得，得到即长期占有，这种更多是用在主备系统的切换场景，如果占有锁的服务不发生异常，则不会主动与 &lt;code&gt;etcd&lt;/code&gt; 交互。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;本文主要讨论第2种场景中遇到的一个细节问题。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2019/05/29/etcd-mutex-lock/&t=一个用 etcd 作主备锁的细节问题"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fas fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fas fa-list fa-lg" aria-hidden="true"></i> TOC</a>
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fas fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script> 
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"Copy to clipboard!\">";
+    btn += '<i class="far fa-clone"></i>';
+    btn += '</span>'; 
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "Copied!");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

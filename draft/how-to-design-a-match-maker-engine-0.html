@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="最近在做一个交易所撮合引擎的项目，中间从设计到实现确实遇到了不少的问题，踩了很多坑，也积累了很多的经验。所以这里想写一系列文章来总结一下。 因为是工作的项目，项目的细节和代码都不能公开，所以我打算把这个设计和实现的过程重新走一遍，原项目是用 golang 来实现的，这里我打算用 C++ 来重新实现。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="实现一个交易所撮合引擎">
+<meta property="og:url" content="http://www.up4dev.com/draft/how-to-design-a-match-maker-engine-0.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="最近在做一个交易所撮合引擎的项目，中间从设计到实现确实遇到了不少的问题，踩了很多坑，也积累了很多的经验。所以这里想写一系列文章来总结一下。 因为是工作的项目，项目的细节和代码都不能公开，所以我打算把这个设计和实现的过程重新走一遍，原项目是用 golang 来实现的，这里我打算用 C++ 来重新实现。">
+<meta property="og:locale">
+<meta property="article:published_time" content="2019-05-13T06:16:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="blockchain">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="区块链">
+<meta property="article:tag" content="技术">
+<meta property="article:tag" content="算法">
+<meta property="article:tag" content="架构">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>实现一个交易所撮合引擎</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+    <div class="content index py4">
+        
+          <header id="header">
+  <a href="/">
+  
+    
+      <div id="logo" style="background-image: url(/assets/up4dev-logo-180.png);"></div>
+    
+  
+    <div id="title">
+      <h1>UP4DEV</h1>
+    </div>
+  </a>
+  <div id="nav">
+    <ul>
+      <li class="icon">
+        <a href="#" aria-label="Menu"><i class="fas fa-bars fa-2x"></i></a>
+      </li>
+      <!--
+     --><li><a href="/">主页</a></li><!--
+   --><!--
+     --><li><a href="/archives/">文章</a></li><!--
+   --><!--
+     --><li><a href="/categories/">分类</a></li><!--
+   --><!--
+     --><li><a href="/about/">关于</a></li><!--
+   --><!--
+     --><li><a href="/search/">🔍 搜索</a></li><!--
+   --><!--
+     --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+   -->
+    </ul>
+  </div>
+</header>
+
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  
+
+  <div class="content" itemprop="articleBody">
+      
+          <p>最近在做一个交易所撮合引擎的项目，中间从设计到实现确实遇到了不少的问题，踩了很多坑，也积累了很多的经验。所以这里想写一系列文章来总结一下。</p>
+<p>因为是工作的项目，项目的细节和代码都不能公开，所以我打算把这个设计和实现的过程重新走一遍，原项目是用 <code>golang</code> 来实现的，这里我打算用 <code>C++</code> 来重新实现。</p>
+<span id="more"></span>
+
+<h2 id="用户数据库"><a href="#用户数据库" class="headerlink" title="用户数据库"></a>用户数据库</h2><p>余额 活动&#x2F;锁定</p>
+<p>挂单</p>
+<p>成交记录</p>
+<h2 id="下单"><a href="#下单" class="headerlink" title="下单"></a>下单</h2><p><del>id 生成</del> &#x2F; 定序</p>
+<p>数据持久化</p>
+<p>传递到撮合引擎</p>
+<p>并发 &#x2F; 多活 &#x2F; 一致性</p>
+<h2 id="撮合"><a href="#撮合" class="headerlink" title="撮合"></a>撮合</h2><p>主备方案</p>
+<h2 id="清算"><a href="#清算" class="headerlink" title="清算"></a>清算</h2><h2 id="行情"><a href="#行情" class="headerlink" title="行情"></a>行情</h2>
+        
+  </div>
+</article>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

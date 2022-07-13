@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="去年入手了一个群晖的 NAS DS716+II，这玩意儿可以说是垂涎了好久，最后忍不住诱惑，终于是入手了。选了716+II这个盘位少但价格不便宜的家伙说白了就是为了一件事——docker。有了docker，可以说就有了无限的可能性，可以随便折腾，不用担心犯错误把NAS的主系统给搞乱了。 不过今天这篇文章我不打算介绍NAS，也不打算说怎么在上边用docker，我只想说说在这个上边怎么使用Let’s">
+<meta property="og:type" content="article">
+<meta property="og:title" content="群晖 Let&#39;s Encrypt 证书的自动更新">
+<meta property="og:url" content="http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/index.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="去年入手了一个群晖的 NAS DS716+II，这玩意儿可以说是垂涎了好久，最后忍不住诱惑，终于是入手了。选了716+II这个盘位少但价格不便宜的家伙说白了就是为了一件事——docker。有了docker，可以说就有了无限的可能性，可以随便折腾，不用担心犯错误把NAS的主系统给搞乱了。 不过今天这篇文章我不打算介绍NAS，也不打算说怎么在上边用docker，我只想说说在这个上边怎么使用Let’s">
+<meta property="og:locale">
+<meta property="article:published_time" content="2017-09-11T10:00:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="NAS">
+<meta property="article:tag" content="HTTPS">
+<meta property="article:tag" content="Let&#39;s Encrypt">
+<meta property="article:tag" content="群晖">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>群晖 Let&#39;s Encrypt 证书的自动更新</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="Top" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fas fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="Previous post" href="/2018/05/05/git-multi-ssh-key/"><i class="fas fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="Next post" href="/2017/06/12/git-commit-info-specify/"><i class="fas fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="Back to top" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="Share post" href="#"><i class="fas fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">Previous post</span>
+      <span id="i-next" class="info" style="display:none;">Next post</span>
+      <span id="i-top" class="info" style="display:none;">Back to top</span>
+      <span id="i-share" class="info" style="display:none;">Share post</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&text=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&is_video=false&description=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=群晖 Let&#39;s Encrypt 证书的自动更新&body=Check out this article: http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/"><i class="fas fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&name=群晖 Let&#39;s Encrypt 证书的自动更新&description=&lt;p&gt;去年入手了一个群晖的 NAS DS716+II，这玩意儿可以说是垂涎了好久，最后忍不住诱惑，终于是入手了。选了716+II这个盘位少但价格不便宜的家伙说白了就是为了一件事——docker。有了docker，可以说就有了无限的可能性，可以随便折腾，不用担心犯错误把NAS的主系统给搞乱了。&lt;/p&gt;
+&lt;p&gt;不过今天这篇文章我不打算介绍NAS，也不打算说怎么在上边用docker，我只想说说在这个上边怎么使用Let’s Encrypt的证书，以及怎么自动更新证书。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&t=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    <div id="toc">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E4%B8%8B%E8%BD%BD%E5%B9%B6%E5%AE%89%E8%A3%85acme-sh"><span class="toc-number">1.</span> <span class="toc-text">1. 下载并安装acme.sh</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E4%BF%AE%E6%94%B9%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%EF%BC%8C%E5%A1%AB%E5%85%A5%E4%BD%A0%E5%9C%A8%E6%8C%87%E5%AE%9A%E5%9F%9F%E5%90%8D%E6%8F%90%E4%BE%9B%E5%95%86%E7%9A%84%E6%8E%88%E6%9D%83token"><span class="toc-number">2.</span> <span class="toc-text">2. 修改配置文件，填入你在指定域名提供商的授权token</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%87%86%E5%A4%87%E7%94%A8%E4%BA%8E%E5%AD%98%E6%94%BE%E5%AE%89%E8%A3%85%E5%90%8E%E7%9A%84%E8%AF%81%E4%B9%A6%E7%9A%84%E7%9B%AE%E5%BD%95"><span class="toc-number">3.</span> <span class="toc-text">3. 准备用于存放安装后的证书的目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E7%94%9F%E6%88%90%E8%AF%81%E4%B9%A6"><span class="toc-number">4.</span> <span class="toc-text">4. 生成证书</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%89%E8%A3%85%E8%AF%81%E4%B9%A6"><span class="toc-number">5.</span> <span class="toc-text">5. 安装证书</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-NAS%E8%AF%81%E4%B9%A6%E5%AE%89%E8%A3%85"><span class="toc-number">6.</span> <span class="toc-text">6. NAS证书安装</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E8%AF%81%E4%B9%A6%E6%9B%B4%E6%96%B0%E5%91%BD%E4%BB%A4"><span class="toc-number">7.</span> <span class="toc-text">7. 证书更新命令</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%8B%B7%E8%B4%9D%E8%AF%81%E4%B9%A6%E8%84%9A%E6%9C%AC"><span class="toc-number">8.</span> <span class="toc-text">8. 拷贝证书脚本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E9%87%8D%E5%90%AFweb%E6%9C%8D%E5%8A%A1"><span class="toc-number">9.</span> <span class="toc-text">9. 重启web服务</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E8%87%AA%E5%8A%A8%E5%8C%96%E8%84%9A%E6%9C%AC"><span class="toc-number">10.</span> <span class="toc-text">10. 自动化脚本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E8%AE%BE%E7%BD%AE%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1"><span class="toc-number">11.</span> <span class="toc-text">11. 设置定时任务</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83"><span class="toc-number">12.</span> <span class="toc-text">参考</span></a></li></ol>
+    </div>
+  </span>
+</div>
+
+    
+    <div class="content index py4">
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle" itemprop="name headline">
+        群晖 Let&#39;s Encrypt 证书的自动更新
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span itemprop="name">andyzhshg</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2017-09-11T10:00:00.000Z" itemprop="datePublished">2017-09-11</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fas fa-archive"></i>
+        <a class="category-link" href="/categories/%E6%B3%9B%E6%8A%80%E6%9C%AF/">泛技术</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fas fa-tag"></i>
+        <a class="tag-link-link" href="/tags/HTTPS/" rel="tag">HTTPS</a>, <a class="tag-link-link" href="/tags/Let-s-Encrypt/" rel="tag">Let's Encrypt</a>, <a class="tag-link-link" href="/tags/NAS/" rel="tag">NAS</a>, <a class="tag-link-link" href="/tags/%E7%BE%A4%E6%99%96/" rel="tag">群晖</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content" itemprop="articleBody">
+    <p>去年入手了一个群晖的 NAS DS716+II，这玩意儿可以说是垂涎了好久，最后忍不住诱惑，终于是入手了。选了716+II这个盘位少但价格不便宜的家伙说白了就是为了一件事——docker。有了docker，可以说就有了无限的可能性，可以随便折腾，不用担心犯错误把NAS的主系统给搞乱了。</p>
+<p>不过今天这篇文章我不打算介绍NAS，也不打算说怎么在上边用docker，我只想说说在这个上边怎么使用Let’s Encrypt的证书，以及怎么自动更新证书。</p>
+<span id="more"></span>
+
+<blockquote>
+<p>[2018.05] 这篇文章提供的方案已经过时，请参考我的另一篇文章：<a href="http://www.up4dev.com/2018/05/29/synology-ssl-wildcard-cert-update/">群晖 Let’s Encrypt 泛域名证书自动更新</a></p>
+</blockquote>
+<p>如果说你幸福的生活在一个运营商没有封80端口的国度，那么这篇文章你就不必往下看了，因为群晖的证书管理本身就内置了Let’s Encrypt的证书管理方式。我之所以写这篇文章，是因为我家的网络是没有开放80端口的，所以群晖自带的管理工具永远都是告诉你<code>“无法连接到 Let&#39;s Encrypt。请确认域名有效。”</code></p>
+<p>好在Let’s Encrypt提供了acme协议的认证方式，可以在没有80端口的情形下来签发和更新证书。</p>
+<p>感谢伟大的GitHub以及无私的开发者们，所有的工具基本上都已经被开发了出来。</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/Neilpang/acme.sh"><strong>Neilpang&#x2F;acme.sh</strong></a> 这个项目基本上就是我们用到的所有的工具了。</p>
+<p>如果你是一个动手能力强的人，那么我在告诉你一下群晖的证书的保存位置<code>/usr/syno/etc/certificate/</code>的话，余下的工作你就应该可以自己搞定了。</p>
+<p>下面就开始介绍具体的步骤：</p>
+<h2 id="1-下载并安装acme-sh"><a href="#1-下载并安装acme-sh" class="headerlink" title="1. 下载并安装acme.sh"></a>1. 下载并安装acme.sh</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 登入NAS</span></span><br><span class="line">ssh -p your_port your_name@your_host</span><br><span class="line"><span class="comment"># 下载并安装acme.sh工具</span></span><br><span class="line">curl  https://get.acme.sh | sh</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-修改配置文件，填入你在指定域名提供商的授权token"><a href="#2-修改配置文件，填入你在指定域名提供商的授权token" class="headerlink" title="2. 修改配置文件，填入你在指定域名提供商的授权token"></a>2. 修改配置文件，填入你在指定域名提供商的授权token</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 进入到配置文件所在目录</span></span><br><span class="line"><span class="built_in">cd</span> ~/.acme.sh/dnsapi</span><br><span class="line"><span class="comment"># 打开阿里云的配置文件，其他提供商可以自行修改对应的配置文件</span></span><br><span class="line">vi dns_ali.sh</span><br><span class="line"><span class="comment"># 修改如下两行配置为你自己的token，注意要去掉前面的#号</span></span><br><span class="line"><span class="comment"># #Ali_Key=&quot;LTqIA87hOKdjevsf5&quot;</span></span><br><span class="line"><span class="comment"># #Ali_Secret=&quot;0p5EYueFNq501xnCPzKNbx6K51qPH2&quot;</span></span><br><span class="line"><span class="comment"># 保存并退出vi</span></span><br></pre></td></tr></table></figure>
+
+<p>不同的提供商的token的形式和配置方式可能会有不同，需要你到域名管理的后台自己去获取。</p>
+<h2 id="3-准备用于存放安装后的证书的目录"><a href="#3-准备用于存放安装后的证书的目录" class="headerlink" title="3. 准备用于存放安装后的证书的目录"></a>3. 准备用于存放安装后的证书的目录</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 新建一个存放所有证书的根目录</span></span><br><span class="line"><span class="built_in">mkdir</span> cert_save_path</span><br><span class="line"><span class="built_in">cd</span> cert_save_path</span><br><span class="line"><span class="comment"># 为每个子域名创建对应的</span></span><br><span class="line"><span class="built_in">mkdir</span> sub1.example.com</span><br><span class="line"><span class="built_in">mkdir</span> sub2.example.com</span><br><span class="line"><span class="comment"># ...</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="4-生成证书"><a href="#4-生成证书" class="headerlink" title="4. 生成证书"></a>4. 生成证书</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 首先加载acme.sh的环境变量</span></span><br><span class="line"><span class="built_in">source</span> ~/.acme.sh/acme.sh.env</span><br><span class="line"><span class="comment"># 执行证书获取命令，我这里的dns_ali是对应阿里云的，其他供应商可以查阅acme的文档</span></span><br><span class="line">acme.sh --issue --dns dns_ali -d sub1.example.com</span><br><span class="line">acme.sh --issue --dns dns_ali -d sub2.example.com</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-安装证书"><a href="#5-安装证书" class="headerlink" title="5. 安装证书"></a>5. 安装证书</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">acme.sh --installcert -d sub1.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub1.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub1.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub1.example.com/fullchain.pem</span><br><span class="line">acme.sh --installcert -d sub2.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub2.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub2.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub2.example.com/fullchain.pem</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>其实这里的安装是指的acme将获取的证书安装到之前建立好的目录，并没有安装到NAS自己的证书管理下边。</p>
+<h2 id="6-NAS证书安装"><a href="#6-NAS证书安装" class="headerlink" title="6. NAS证书安装"></a>6. NAS证书安装</h2><p>控制面板 -&gt; 安全性 -&gt; 证书 -&gt; 新增 -&gt; 添加新证书 -&gt; 导入证书(描述那里填完整的子域名) -&gt; 导入证书文件(私钥为privkey 证书为cert.pem 中间证书为fullchain.pem)</p>
+<p>这一步将我们从Let’s Encrypt获取的证书安装到了NAS，我们发现有效期是三个月，如果你能够接受三个月走一遍上边的流程，那么到这里就可以结束了，如果想把这个过程自动化起来，请接着看下边的流程。</p>
+<h2 id="7-证书更新命令"><a href="#7-证书更新命令" class="headerlink" title="7. 证书更新命令"></a>7. 证书更新命令</h2><p>因为Let’s Encrypt的证书的有效期只有三个月，所有我们必须至少每三个月执行一次更性操作，以防止证书过期。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub1.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub1.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub1.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub1.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub1.example.com/fullchain.pem</span><br><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub2.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub2.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub2.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub2.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub2.example.com/fullchain.pem</span><br></pre></td></tr></table></figure>
+
+<p>执行上边的命令，会从Let’s Encrypt更新证书，并安装到指定的位置。</p>
+<h2 id="8-拷贝证书脚本"><a href="#8-拷贝证书脚本" class="headerlink" title="8. 拷贝证书脚本"></a>8. 拷贝证书脚本</h2><p>这一步我认为一定是有其他方法来做的，但是因为搞不明白群晖NAS的证书存放逻辑，暂时就想了这么一个折中的办法。</p>
+<p>通过观察可以发现，所有证书相关的配置都是在路径<code>/usr/syno/etc/certificate</code>下的，证书存放的具体位置是<code>/usr/syno/etc/certificate/_archive</code>，该目录下的内容形如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">2zFLdC  DEFAULT  dXWIy3  h94Uuq  IhSb6T  INFO  kGn0Zn  uTv2EL  vY1OEs  WE3xYE</span><br></pre></td></tr></table></figure>
+
+<p>其中INFO的内容是一个JSON文件，记录了每个证书的存放位置和应用的范围，DEFAULT记录了哪一个是默认的证书，其他的目录则是存放一个一个的子域名的证书。</p>
+<p>通过观察INFO的内容我们可以发现目录名和域名的对应关系，我编写了一个python脚本来分析这个对应关系以及将前文的证书拷贝到对应的位置，脚本名称为update.py.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># update.py</span></span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> shutil</span><br><span class="line"></span><br><span class="line">SRC_BASE_PATH = <span class="string">&#x27;/cert_save_path&#x27;</span>   <span class="comment"># 这是步骤3里创建的目录</span></span><br><span class="line">DES_BASE_PATH = <span class="string">&#x27;/usr/syno/etc/certificate&#x27;</span></span><br><span class="line">ARC_BASE_PATH = <span class="string">&#x27;/usr/syno/etc/certificate/_archive&#x27;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># [archive_key: (domain_name, destination_path)]</span></span><br><span class="line">keys = &#123;&#125;</span><br><span class="line"></span><br><span class="line">cfg_str = <span class="built_in">open</span>(<span class="string">&#x27;/usr/syno/etc/certificate/_archive/INFO&#x27;</span>).read()</span><br><span class="line">cfg = json.loads(cfg_str)</span><br><span class="line"></span><br><span class="line"><span class="comment"># name to key</span></span><br><span class="line"><span class="keyword">for</span> k <span class="keyword">in</span> cfg:</span><br><span class="line">    <span class="keyword">for</span> service <span class="keyword">in</span> cfg[k][<span class="string">&#x27;services&#x27;</span>]:</span><br><span class="line">        name = service[<span class="string">&#x27;display_name&#x27;</span>]</span><br><span class="line">        <span class="keyword">if</span> name.find(<span class="string">&#x27;up4dev.com&#x27;</span>) &lt; <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line">        keys[k] = &#123;<span class="string">&#x27;name&#x27;</span> : name, <span class="string">&#x27;arc_path&#x27;</span> : <span class="string">&#x27;%s/%s&#x27;</span> %(ARC_BASE_PATH, k), <span class="string">&#x27;des_path&#x27;</span> : [], <span class="string">&#x27;src_path&#x27;</span>: <span class="string">&#x27;%s/%s&#x27;</span> %(SRC_BASE_PATH, name)&#125;</span><br><span class="line">        <span class="comment"># des_path = &#x27;%s/%s/%s&#x27; %(CERT_BASE_PATH, service[&#x27;subscriber&#x27;], service[&#x27;service&#x27;])</span></span><br><span class="line">        <span class="comment"># print name, des_path</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> k <span class="keyword">in</span> cfg:</span><br><span class="line">    <span class="keyword">for</span> service <span class="keyword">in</span> cfg[k][<span class="string">&#x27;services&#x27;</span>]:</span><br><span class="line">        des_path = <span class="string">&#x27;%s/%s/%s&#x27;</span> %(DES_BASE_PATH, service[<span class="string">&#x27;subscriber&#x27;</span>], service[<span class="string">&#x27;service&#x27;</span>])</span><br><span class="line">        <span class="keyword">if</span> os.path.exists(des_path):</span><br><span class="line">            keys[k][<span class="string">&#x27;des_path&#x27;</span>].append(des_path)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> key <span class="keyword">in</span> keys:</span><br><span class="line">    <span class="built_in">print</span> keys[key]</span><br><span class="line">    shutil.copy2(keys[key][<span class="string">&#x27;src_path&#x27;</span>] + <span class="string">&#x27;/cert.pem&#x27;</span>, keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/cert.pem&#x27;</span>)</span><br><span class="line">    shutil.copy2(keys[key][<span class="string">&#x27;src_path&#x27;</span>] + <span class="string">&#x27;/privkey.pem&#x27;</span>, keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/privkey.pem&#x27;</span>)</span><br><span class="line">    shutil.copy2(keys[key][<span class="string">&#x27;src_path&#x27;</span>] + <span class="string">&#x27;/fullchain.pem&#x27;</span>, keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/fullchain.pem&#x27;</span>)</span><br><span class="line">    <span class="keyword">for</span> des <span class="keyword">in</span> keys[key][<span class="string">&#x27;des_path&#x27;</span>]:</span><br><span class="line">        shutil.copy2(keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/cert.pem&#x27;</span>, des + <span class="string">&#x27;/cert.pem&#x27;</span>)</span><br><span class="line">        shutil.copy2(keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/privkey.pem&#x27;</span>, des + <span class="string">&#x27;/privkey.pem&#x27;</span>)</span><br><span class="line">        shutil.copy2(keys[key][<span class="string">&#x27;arc_path&#x27;</span>] + <span class="string">&#x27;/fullchain.pem&#x27;</span>, des + <span class="string">&#x27;/fullchain.pem&#x27;</span>)</span><br><span class="line">    </span><br><span class="line">    </span><br></pre></td></tr></table></figure>
+
+<h2 id="9-重启web服务"><a href="#9-重启web服务" class="headerlink" title="9. 重启web服务"></a>9. 重启web服务</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 我选用的是nginx作为Web服务，如果选择Apache则执行Apache的重启命令</span></span><br><span class="line">/usr/syno/etc/rc.sysv/nginx.sh reload</span><br></pre></td></tr></table></figure>
+
+<h2 id="10-自动化脚本"><a href="#10-自动化脚本" class="headerlink" title="10. 自动化脚本"></a>10. 自动化脚本</h2><p>我们将8，9，10三个步骤的操作串起来，做成一个自动化脚本，保存为auto_update.sh</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 更新并安装</span></span><br><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub1.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub1.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub1.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub1.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub1.example.com/fullchain.pem</span><br><span class="line">acme.sh/acme.sh --renew --force --dns dns_ali -d sub2.example.com</span><br><span class="line">acme.sh/acme.sh --installcert -d sub2.example.com \</span><br><span class="line">        --certpath /cert_save_path/sub2.example.com/cert.pem \</span><br><span class="line">        --key-file /cert_save_path/sub2.example.com/privkey.pem \</span><br><span class="line">        --fullchain-file /cert_save_path/sub2.example.com/fullchain.pem</span><br><span class="line"></span><br><span class="line"><span class="comment"># 拷贝到NAS的证书路径</span></span><br><span class="line">python update.py</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重启Web服务</span></span><br><span class="line"></span><br><span class="line">/usr/syno/etc/rc.sysv/nginx.sh reload</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="11-设置定时任务"><a href="#11-设置定时任务" class="headerlink" title="11. 设置定时任务"></a>11. 设置定时任务</h2><p>控制面板 -&gt; 任务计划 -&gt; 新增 -&gt; 计划的任务 -&gt; 用户定义的脚本 -&gt; 计划(设置成每月执行一次) -&gt; 任务设置(用户定义的脚本中填入步骤10的脚本的完整路径)</p>
+<p>[^2018.05.09]: Let’s Encrypt 已经支持wildcard类型的证书，可能已经有比本文更好的方法了，待我研究之后再写一篇文章。</p>
+<p>[^2018.05.30]: 泛域名的更新方法我已经另写了另一篇文章，大家可以参考：<a href="http://www.up4dev.com/2018/05/29/synology-ssl-wildcard-cert-update/">群晖 Let’s Encrypt 泛域名证书自动更新</a></p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://forum.51nb.com/thread-1789843-1-1.html">forum.51nb.com: 群晖安装并自动续期Let’s Encrypt SSL证书</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/Neilpang/acme.sh/wiki/%E8%AF%B4%E6%98%8E">Neilpang&#x2F;acme.sh 说明</a></li>
+</ul>
+<p></p>
+
+  </div>
+</article>
+
+    <div class="blog-post-comments">
+        <div id="disqus_thread">
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+    </div>
+
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+         
+          <li><a href="/">主页</a></li>
+         
+          <li><a href="/archives/">文章</a></li>
+         
+          <li><a href="/categories/">分类</a></li>
+         
+          <li><a href="/about/">关于</a></li>
+         
+          <li><a href="/search/">🔍 搜索</a></li>
+         
+          <li><a href="/about/xiang-ji-xuan-zhi">💜</a></li>
+        
+      </ul>
+    </div>
+
+    <div id="toc-footer" style="display: none">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E4%B8%8B%E8%BD%BD%E5%B9%B6%E5%AE%89%E8%A3%85acme-sh"><span class="toc-number">1.</span> <span class="toc-text">1. 下载并安装acme.sh</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E4%BF%AE%E6%94%B9%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%EF%BC%8C%E5%A1%AB%E5%85%A5%E4%BD%A0%E5%9C%A8%E6%8C%87%E5%AE%9A%E5%9F%9F%E5%90%8D%E6%8F%90%E4%BE%9B%E5%95%86%E7%9A%84%E6%8E%88%E6%9D%83token"><span class="toc-number">2.</span> <span class="toc-text">2. 修改配置文件，填入你在指定域名提供商的授权token</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%87%86%E5%A4%87%E7%94%A8%E4%BA%8E%E5%AD%98%E6%94%BE%E5%AE%89%E8%A3%85%E5%90%8E%E7%9A%84%E8%AF%81%E4%B9%A6%E7%9A%84%E7%9B%AE%E5%BD%95"><span class="toc-number">3.</span> <span class="toc-text">3. 准备用于存放安装后的证书的目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E7%94%9F%E6%88%90%E8%AF%81%E4%B9%A6"><span class="toc-number">4.</span> <span class="toc-text">4. 生成证书</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%89%E8%A3%85%E8%AF%81%E4%B9%A6"><span class="toc-number">5.</span> <span class="toc-text">5. 安装证书</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-NAS%E8%AF%81%E4%B9%A6%E5%AE%89%E8%A3%85"><span class="toc-number">6.</span> <span class="toc-text">6. NAS证书安装</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E8%AF%81%E4%B9%A6%E6%9B%B4%E6%96%B0%E5%91%BD%E4%BB%A4"><span class="toc-number">7.</span> <span class="toc-text">7. 证书更新命令</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%8B%B7%E8%B4%9D%E8%AF%81%E4%B9%A6%E8%84%9A%E6%9C%AC"><span class="toc-number">8.</span> <span class="toc-text">8. 拷贝证书脚本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E9%87%8D%E5%90%AFweb%E6%9C%8D%E5%8A%A1"><span class="toc-number">9.</span> <span class="toc-text">9. 重启web服务</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E8%87%AA%E5%8A%A8%E5%8C%96%E8%84%9A%E6%9C%AC"><span class="toc-number">10.</span> <span class="toc-text">10. 自动化脚本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E8%AE%BE%E7%BD%AE%E5%AE%9A%E6%97%B6%E4%BB%BB%E5%8A%A1"><span class="toc-number">11.</span> <span class="toc-text">11. 设置定时任务</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83"><span class="toc-number">12.</span> <span class="toc-text">参考</span></a></li></ol>
+    </div>
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&text=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&is_video=false&description=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=群晖 Let&#39;s Encrypt 证书的自动更新&body=Check out this article: http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/"><i class="fas fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&title=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&name=群晖 Let&#39;s Encrypt 证书的自动更新&description=&lt;p&gt;去年入手了一个群晖的 NAS DS716+II，这玩意儿可以说是垂涎了好久，最后忍不住诱惑，终于是入手了。选了716+II这个盘位少但价格不便宜的家伙说白了就是为了一件事——docker。有了docker，可以说就有了无限的可能性，可以随便折腾，不用担心犯错误把NAS的主系统给搞乱了。&lt;/p&gt;
+&lt;p&gt;不过今天这篇文章我不打算介绍NAS，也不打算说怎么在上边用docker，我只想说说在这个上边怎么使用Let’s Encrypt的证书，以及怎么自动更新证书。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2017/09/11/synology-ssl-cert-update/&t=群晖 Let&#39;s Encrypt 证书的自动更新"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fas fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fas fa-list fa-lg" aria-hidden="true"></i> TOC</a>
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fas fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script> 
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"Copy to clipboard!\">";
+    btn += '<i class="far fa-clone"></i>';
+    btn += '</span>'; 
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "Copied!");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>

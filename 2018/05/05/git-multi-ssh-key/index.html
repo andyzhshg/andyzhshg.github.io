@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="我们大多时候是通过ssh key的方式来进行github代码库的权限管理，如何生成一个ssh key以及如何在github设置网络上有各类的说明，不是本文的重点。本文要解决的是在一个机器上管理多个账号的方法。 出于各种原因，有些人会有多个github账号，比如一个个人账号，一个工作账号。而github是不允许两个账号出现相同的SSH KEY的。那么问题来了，我们为了方便，往往都是用ss-keyge">
+<meta property="og:type" content="article">
+<meta property="og:title" content="管理多个github账号的 ssh key">
+<meta property="og:url" content="http://www.up4dev.com/2018/05/05/git-multi-ssh-key/index.html">
+<meta property="og:site_name" content="UP4DEV">
+<meta property="og:description" content="我们大多时候是通过ssh key的方式来进行github代码库的权限管理，如何生成一个ssh key以及如何在github设置网络上有各类的说明，不是本文的重点。本文要解决的是在一个机器上管理多个账号的方法。 出于各种原因，有些人会有多个github账号，比如一个个人账号，一个工作账号。而github是不允许两个账号出现相同的SSH KEY的。那么问题来了，我们为了方便，往往都是用ss-keyge">
+<meta property="og:locale">
+<meta property="article:published_time" content="2018-05-05T08:14:00.000Z">
+<meta property="article:modified_time" content="2020-07-04T13:00:31.000Z">
+<meta property="article:author" content="andyzhshg">
+<meta property="article:tag" content="技术">
+<meta property="article:tag" content="git">
+<meta property="article:tag" content="github">
+<meta property="article:tag" content="ssh">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/assets/up4dev-logo-192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/assets/up4dev-logo-180.png">
+        
+      
+    
+    <!-- title -->
+    <title>管理多个github账号的 ssh key</title>
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="Menu"><i class="fas fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="Top" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fas fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="Previous post" href="/2018/05/10/install-vmm-on-ds716/"><i class="fas fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="Next post" href="/2017/09/11/synology-ssl-cert-update/"><i class="fas fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="Back to top" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="Share post" href="#"><i class="fas fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">Previous post</span>
+      <span id="i-next" class="info" style="display:none;">Next post</span>
+      <span id="i-top" class="info" style="display:none;">Back to top</span>
+      <span id="i-share" class="info" style="display:none;">Share post</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&text=管理多个github账号的 ssh key"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&is_video=false&description=管理多个github账号的 ssh key"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=管理多个github账号的 ssh key&body=Check out this article: http://www.up4dev.com/2018/05/05/git-multi-ssh-key/"><i class="fas fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&name=管理多个github账号的 ssh key&description=&lt;p&gt;我们大多时候是通过&lt;code&gt;ssh key&lt;/code&gt;的方式来进行&lt;code&gt;github&lt;/code&gt;代码库的权限管理，如何生成一个&lt;code&gt;ssh key&lt;/code&gt;以及如何在&lt;code&gt;github&lt;/code&gt;设置网络上有各类的说明，不是本文的重点。本文要解决的是在一个机器上管理多个账号的方法。&lt;/p&gt;
+&lt;p&gt;出于各种原因，有些人会有多个github账号，比如一个个人账号，一个工作账号。而github是不允许两个账号出现相同的SSH KEY的。那么问题来了，我们为了方便，往往都是用&lt;code&gt;ss-keygen&lt;/code&gt;命令，一路默认参数在&lt;code&gt;~/.ssh&lt;/code&gt;目录下生成一对名为&lt;code&gt;id_rsa&lt;/code&gt;和&lt;code&gt;id_rsa.pub&lt;/code&gt;的密钥，然后把&lt;code&gt;id_rsa.pub&lt;/code&gt;贴到github的&lt;code&gt;SSH and GPG keys&lt;/code&gt;设置中去。&lt;/p&gt;
+&lt;p&gt;如何生成一个新的密钥给另一个账号，并且在使用的过程中尽量减少麻烦呢，我这里给出一种相对简便的方法。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&t=管理多个github账号的 ssh key"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    <div id="toc">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E7%94%9F%E6%88%90%E4%B8%80%E5%AF%B9%E5%91%BD%E5%90%8D%E7%9A%84ssh-key"><span class="toc-number">1.</span> <span class="toc-text">1. 生成一对命名的ssh key</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9B%B4%E6%94%B9%E6%9C%AC%E5%9C%B0%E7%9A%84SSH%E9%85%8D%E7%BD%AE"><span class="toc-number">2.</span> <span class="toc-text">2. 更改本地的SSH配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%B0%86%E6%96%B0%E7%94%9F%E6%88%90%E7%9A%84ssh-key%E5%8A%A0%E5%88%B0github%E8%B4%A6%E5%8F%B7%E9%85%8D%E7%BD%AE%E4%B8%8B"><span class="toc-number">3.</span> <span class="toc-text">3. 将新生成的ssh key加到github账号配置下</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%85%8B%E9%9A%86%E6%96%B0%E7%9A%84%E9%A1%B9%E7%9B%AE"><span class="toc-number">4.</span> <span class="toc-text">4. 克隆新的项目</span></a></li></ol>
+    </div>
+  </span>
+</div>
+
+    
+    <div class="content index py4">
+        
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle" itemprop="name headline">
+        管理多个github账号的 ssh key
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span itemprop="name">andyzhshg</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2018-05-05T08:14:00.000Z" itemprop="datePublished">2018-05-05</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fas fa-archive"></i>
+        <a class="category-link" href="/categories/%E6%B3%9B%E6%8A%80%E6%9C%AF/">泛技术</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fas fa-tag"></i>
+        <a class="tag-link-link" href="/tags/git/" rel="tag">git</a>, <a class="tag-link-link" href="/tags/github/" rel="tag">github</a>, <a class="tag-link-link" href="/tags/ssh/" rel="tag">ssh</a>, <a class="tag-link-link" href="/tags/%E6%8A%80%E6%9C%AF/" rel="tag">技术</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content" itemprop="articleBody">
+    <p>我们大多时候是通过<code>ssh key</code>的方式来进行<code>github</code>代码库的权限管理，如何生成一个<code>ssh key</code>以及如何在<code>github</code>设置网络上有各类的说明，不是本文的重点。本文要解决的是在一个机器上管理多个账号的方法。</p>
+<p>出于各种原因，有些人会有多个github账号，比如一个个人账号，一个工作账号。而github是不允许两个账号出现相同的SSH KEY的。那么问题来了，我们为了方便，往往都是用<code>ss-keygen</code>命令，一路默认参数在<code>~/.ssh</code>目录下生成一对名为<code>id_rsa</code>和<code>id_rsa.pub</code>的密钥，然后把<code>id_rsa.pub</code>贴到github的<code>SSH and GPG keys</code>设置中去。</p>
+<p>如何生成一个新的密钥给另一个账号，并且在使用的过程中尽量减少麻烦呢，我这里给出一种相对简便的方法。</p>
+<span id="more"></span>
+
+<h2 id="1-生成一对命名的ssh-key"><a href="#1-生成一对命名的ssh-key" class="headerlink" title="1. 生成一对命名的ssh key"></a>1. 生成一对命名的<code>ssh key</code></h2><p>首先生成一对新的<code>ssh key</code>，依然是用<code>ssh-keygen</code>命令，只是这次不用默认的参数。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">ssh-keygen</span><br><span class="line">Generating public/private rsa key pair.</span><br><span class="line">Enter file <span class="keyword">in</span> <span class="built_in">which</span> to save the key (/YourHomeDir/.ssh/id_rsa):/YourHomeDir/.ssh/account1</span><br><span class="line">Enter passphrase (empty <span class="keyword">for</span> no passphrase):</span><br><span class="line">Enter same passphrase again:</span><br><span class="line">Your identification has been saved <span class="keyword">in</span> /YourHomeDir/.ssh/account1.</span><br><span class="line">Your public key has been saved <span class="keyword">in</span> /YourHomeDir/.ssh/account1.pub.</span><br><span class="line">The key fingerprint is:</span><br><span class="line">SHA256:...</span><br><span class="line">The key<span class="string">&#x27;s randomart image is:</span></span><br><span class="line"><span class="string">+---[RSA 2048]----+</span></span><br><span class="line"><span class="string">| . .o+.oo        |</span></span><br><span class="line"><span class="string">|. oo. ..ooo o    |</span></span><br><span class="line"><span class="string">|o+o.+o .oo.+ =   |</span></span><br><span class="line"><span class="string">|=+ .o.Eo... = .  |</span></span><br><span class="line"><span class="string">|+    .  S. o .   |</span></span><br><span class="line"><span class="string">| .    o . o      |</span></span><br><span class="line"><span class="string">|       B *       |</span></span><br><span class="line"><span class="string">|      o X *      |</span></span><br><span class="line"><span class="string">|      .o B..     |</span></span><br><span class="line"><span class="string">+----[SHA256]-----+</span></span><br></pre></td></tr></table></figure>
+
+<p>需要关注的是上边命令中的第3行，我们输入了<code>/YourHomeDir/.ssh/account1</code>，也就是我们所希望的ssh密钥的名字以及路径，其他步骤基本都一样，一路默认参数回车就可以了。这是我们在<code>/YourHomeDir/.ssh/</code>路径下生成了一对名为<code>account1</code>和<code>account1.pub</code>的新秘钥。</p>
+<blockquote>
+<p>一定要注意新秘钥的命名，不要覆盖掉旧的秘钥造成不必要的麻烦。</p>
+</blockquote>
+<h2 id="2-更改本地的SSH配置"><a href="#2-更改本地的SSH配置" class="headerlink" title="2. 更改本地的SSH配置"></a>2. 更改本地的SSH配置</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/.ssh</span><br><span class="line"><span class="built_in">touch</span> config</span><br><span class="line">vim config</span><br></pre></td></tr></table></figure>
+
+<p>上面的命令在ssh配置目录创建(如果不存在)一个<code>config</code>文件，并用<code>vim</code>打开编辑。通过<code>vim</code>编辑加入如下配置：</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 配置示例1</span></span><br><span class="line">Host xxxx</span><br><span class="line">    HostName github.com</span><br><span class="line">    IdentityFile ~/.ssh/account1</span><br></pre></td></tr></table></figure>
+
+<p>其中第1行中的<code>xxxx</code>是一个代替github.com的名字，你可以用一个自己比较容易记得域名，比如我就比较喜欢这样：</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 配置示例2</span></span><br><span class="line">Host my-github-name.github.com</span><br><span class="line">    HostName github.com</span><br><span class="line">    IdentityFile ~/.ssh/account1</span><br></pre></td></tr></table></figure>
+
+<p>其中<code>my-github-name</code>是对应我生成的这个<code>ssh key</code>的<code>github</code>账号的名字。</p>
+<h2 id="3-将新生成的ssh-key加到github账号配置下"><a href="#3-将新生成的ssh-key加到github账号配置下" class="headerlink" title="3. 将新生成的ssh key加到github账号配置下"></a>3. 将新生成的<code>ssh key</code>加到github账号配置下</h2><p>将第一步生成的秘钥对中的<code>account1.pub</code>的内加入github账号的<code>SSH and GPG keys</code>设置项中。因为是一个全新的秘钥，自是不会再出现添加不进去的问题。</p>
+<h2 id="4-克隆新的项目"><a href="#4-克隆新的项目" class="headerlink" title="4. 克隆新的项目"></a>4. 克隆新的项目</h2><p>一般情况下，我们是通过如下的方式克隆一个项目：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> git@github.com:your-account/your-prj.git</span><br></pre></td></tr></table></figure>
+
+<p>我们需要对这个语句中的域名部分做一下修改：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 对应配置示例1</span></span><br><span class="line">git <span class="built_in">clone</span> git@xxxx:your-account/your-prj.git</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 对应配置示例2</span></span><br><span class="line">git <span class="built_in">clone</span> git@my-github-name.github.com:your-account/your-prj.git</span><br></pre></td></tr></table></figure>
+
+<p>这时，我们就是通过新的<code>ssh key</code>来<code>clone</code>的代码，在此之后的操作就没有区别了，一切按照之前的使用习惯即可，无论是<code>pull</code>还是<code>push</code>代码等操作都使用新的<code>ssh key</code>来进行了。</p>
+<blockquote>
+<p>这里补充说一个可能跟<code>ssh key</code>的关系不大，但是跟多账号有关的问题，是关于<code>commit</code>代码的账号的设置的。如果默认不处理，提交代码的时候提交信息中的用户和邮箱信息是用户设置的全局账户的信息，当时应该是这样设置的：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">git config --global user.name <span class="string">&quot;You Name&quot;</span></span><br><span class="line">git config --global user.email name@example.com</span><br></pre></td></tr></table></figure>
+
+<p>我们往往是要给不同项目设置不同的提交信息，毕竟你不想把公司的邮箱带到私人项目的提交记录中去。可以通过下边的方式文每个项目单独设置提交账户信息：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> YourRepoPath</span><br><span class="line">git config user.name <span class="string">&quot;You Name&quot;</span></span><br><span class="line">git config user.email name@example.com</span><br></pre></td></tr></table></figure>
+
+<p>其实很简单，就是去掉<code>--global</code>参数。</p>
+</blockquote>
+<hr>
+<p>我的第一个账号是通过默认方式添加的，所以如果没有用自定义域名添加的项目都是使用的默认的密钥即<code>id_rsa</code>，为了使用方便，可以让自己使用最频繁(或者是项目最多的账户)使用这个默认配置。</p>
+<p>如果你有更多的账号，通过上边的方法来生成更多的<code>ssh key</code>并通过自定义域名的方式对不同账号的项目进行区分即可。</p>
+<p>本方法同样适用于<code>gitlab</code>的多账号情境。</p>
+
+  </div>
+</article>
+
+    <div class="blog-post-comments">
+        <div id="disqus_thread">
+            <noscript>Please enable JavaScript to view the comments.</noscript>
+        </div>
+    </div>
+
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+         
+          <li><a href="/">主页</a></li>
+         
+          <li><a href="/archives/">文章</a></li>
+         
+          <li><a href="/categories/">分类</a></li>
+         
+          <li><a href="/about/">关于</a></li>
+         
+          <li><a href="/search/">🔍 搜索</a></li>
+         
+          <li><a href="/about/xiang-ji-xuan-zhi">💜</a></li>
+        
+      </ul>
+    </div>
+
+    <div id="toc-footer" style="display: none">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E7%94%9F%E6%88%90%E4%B8%80%E5%AF%B9%E5%91%BD%E5%90%8D%E7%9A%84ssh-key"><span class="toc-number">1.</span> <span class="toc-text">1. 生成一对命名的ssh key</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9B%B4%E6%94%B9%E6%9C%AC%E5%9C%B0%E7%9A%84SSH%E9%85%8D%E7%BD%AE"><span class="toc-number">2.</span> <span class="toc-text">2. 更改本地的SSH配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%B0%86%E6%96%B0%E7%94%9F%E6%88%90%E7%9A%84ssh-key%E5%8A%A0%E5%88%B0github%E8%B4%A6%E5%8F%B7%E9%85%8D%E7%BD%AE%E4%B8%8B"><span class="toc-number">3.</span> <span class="toc-text">3. 将新生成的ssh key加到github账号配置下</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%85%8B%E9%9A%86%E6%96%B0%E7%9A%84%E9%A1%B9%E7%9B%AE"><span class="toc-number">4.</span> <span class="toc-text">4. 克隆新的项目</span></a></li></ol>
+    </div>
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&text=管理多个github账号的 ssh key"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&is_video=false&description=管理多个github账号的 ssh key"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=管理多个github账号的 ssh key&body=Check out this article: http://www.up4dev.com/2018/05/05/git-multi-ssh-key/"><i class="fas fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&title=管理多个github账号的 ssh key"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&name=管理多个github账号的 ssh key&description=&lt;p&gt;我们大多时候是通过&lt;code&gt;ssh key&lt;/code&gt;的方式来进行&lt;code&gt;github&lt;/code&gt;代码库的权限管理，如何生成一个&lt;code&gt;ssh key&lt;/code&gt;以及如何在&lt;code&gt;github&lt;/code&gt;设置网络上有各类的说明，不是本文的重点。本文要解决的是在一个机器上管理多个账号的方法。&lt;/p&gt;
+&lt;p&gt;出于各种原因，有些人会有多个github账号，比如一个个人账号，一个工作账号。而github是不允许两个账号出现相同的SSH KEY的。那么问题来了，我们为了方便，往往都是用&lt;code&gt;ss-keygen&lt;/code&gt;命令，一路默认参数在&lt;code&gt;~/.ssh&lt;/code&gt;目录下生成一对名为&lt;code&gt;id_rsa&lt;/code&gt;和&lt;code&gt;id_rsa.pub&lt;/code&gt;的密钥，然后把&lt;code&gt;id_rsa.pub&lt;/code&gt;贴到github的&lt;code&gt;SSH and GPG keys&lt;/code&gt;设置中去。&lt;/p&gt;
+&lt;p&gt;如何生成一个新的密钥给另一个账号，并且在使用的过程中尽量减少麻烦呢，我这里给出一种相对简便的方法。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=http://www.up4dev.com/2018/05/05/git-multi-ssh-key/&t=管理多个github账号的 ssh key"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fas fa-bars fa-lg" aria-hidden="true"></i> Menu</a>
+        <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fas fa-list fa-lg" aria-hidden="true"></i> TOC</a>
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fas fa-share-alt fa-lg" aria-hidden="true"></i> Share</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fas fa-chevron-up fa-lg" aria-hidden="true"></i> Top</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2015-2022
+    andyzhshg
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">主页</a></li><!--
+     --><!--
+       --><li><a href="/archives/">文章</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/search/">🔍 搜索</a></li><!--
+     --><!--
+       --><li><a href="/about/xiang-ji-xuan-zhi">💜</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script> 
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script> 
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"Copy to clipboard!\">";
+    btn += '<i class="far fa-clone"></i>';
+    btn += '</span>'; 
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "Copied!");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Google Analytics -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Umami Analytics -->
+
+<!-- Disqus Comments -->
+
+    <script type="text/javascript">
+        var disqus_shortname = 'up4dev';
+
+        (function(){
+            var dsq = document.createElement('script');
+            dsq.type = 'text/javascript';
+            dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        }());
+    </script>
+
+<!-- utterances Comments -->
+
+</body>
+</html>
