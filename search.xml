@@ -266,9 +266,9 @@
             
             <tag> 技术 </tag>
             
-            <tag> git </tag>
-            
             <tag> go </tag>
+            
+            <tag> git </tag>
             
             <tag> ss </tag>
             
@@ -719,33 +719,6 @@
     
     
     <entry>
-      <title>用network create解决Docker容器互相连接的问题</title>
-      <link href="/2016/10/09/docker-network-create/"/>
-      <url>/2016/10/09/docker-network-create/</url>
-      
-        <content type="html"><![CDATA[<p>目前在做一个P2P的程序，为了方便测试和部署，我们用<code>docker</code>来运行相同的程序实例。</p><p>作为一个P2P的程序，所有的实例之间应该是对等的，并且可以相互连接通信，看似简单，一开始的时候我们却在这里栽了跟头…</p><span id="more"></span><p>通常情况下，我们是通过在启动容器的时候传入<code>--link</code>参数的方式访问其他的容器的。</p><p>比如我们的一个容器要访问<code>mysql</code>，我们这样启动<code>mysql</code>(注意<code>--name</code>参数)：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run -e MYSQL_ROOT_PASSWORD=password --name=mysql -d mysql</span><br></pre></td></tr></table></figure><p>然后我们的需要访问<code>mysql</code>的容器这样启动(注意<code>--link</code>参数)</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run --name=my_container --link mysql:mysql my/my_image</span><br></pre></td></tr></table></figure><p>这样，在我们新启动的容器<code>my_container</code>里就能够以域名<code>mysql</code>来访问<code>mysql</code>容器了。</p><p>可现在的情况是，作为一个P2P的程序，我们要启动两个容器(至少两个)<code>container_a</code>和<code>container_b</code>。希望<code>container_a</code>能访问<code>container_b</code>，并且<code>container_b</code>可以访问<code>container_a</code>，用跟上边同样的思路我们会想到这样启动</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run --name=container_a --link container_b:container_b -d my/my_image</span><br><span class="line">docker run --name=container_b --link container_a:container_a -d my/my_image</span><br></pre></td></tr></table></figure><p>但是问题来了，当我们执行第一句命令时，<code>docker</code>会告诉我们，<code>container_b</code>不存在，可不是么，<code>container_b</code>此时还没有启动，当然是不存在的。这就造成了一种困境，<code>container_a</code>和<code>container_b</code>两者是相互依赖的，二者无论先启动谁，都要求先启动另一者，这种方式根本解决不了这个问题。</p><p>那么这种容器互相连接的问题怎么解决呢？就要轮到本文重点<code>docker network create</code>登场了。</p><p>首先我们先创建一个<code>network</code></p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker network create my-net</span><br></pre></td></tr></table></figure><p>通过执行命令可以查看到我们创建的网络</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker network ls</span><br></pre></td></tr></table></figure><p>结果应该类似下面这样</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cbd1aa22d04a        bridge              bridge              local</span><br><span class="line">33be010f6cd9        host                host                local</span><br><span class="line">628c2540d5d3        my-net              bridge              local</span><br></pre></td></tr></table></figure><p>我们看到<code>my-net</code>在这个列表中，然后我们就要利用这个新建的<code>my-net</code>网络来启动我们的容器。</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run --net=my-net --net-alias=container_a --name=container_a -d my/my_image</span><br><span class="line">docker run --net=my-net --net-alias=container_b --name=container_b -d my/my_image</span><br></pre></td></tr></table></figure><p>我们通过<code>--net</code>参数指定容器使用的网络，通过<code>--net-alias</code>指定容器在这个网络中的别名，这样在这个网络中的所有的容器就都可以通过这个别名作为域名来访问到该容器了。</p>]]></content>
-      
-      
-      <categories>
-          
-          <category> 泛技术 </category>
-          
-      </categories>
-      
-      
-        <tags>
-            
-            <tag> 技术 </tag>
-            
-            <tag> docker </tag>
-            
-        </tags>
-      
-    </entry>
-    
-    
-    
-    <entry>
       <title>C++11的智能指针(1) unique_ptr</title>
       <link href="/2016/10/09/cpp11-unique_ptr/"/>
       <url>/2016/10/09/cpp11-unique_ptr/</url>
@@ -769,6 +742,33 @@
             <tag> C++0x </tag>
             
             <tag> 智能指针 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>用network create解决Docker容器互相连接的问题</title>
+      <link href="/2016/10/09/docker-network-create/"/>
+      <url>/2016/10/09/docker-network-create/</url>
+      
+        <content type="html"><![CDATA[<p>目前在做一个P2P的程序，为了方便测试和部署，我们用<code>docker</code>来运行相同的程序实例。</p><p>作为一个P2P的程序，所有的实例之间应该是对等的，并且可以相互连接通信，看似简单，一开始的时候我们却在这里栽了跟头…</p><span id="more"></span><p>通常情况下，我们是通过在启动容器的时候传入<code>--link</code>参数的方式访问其他的容器的。</p><p>比如我们的一个容器要访问<code>mysql</code>，我们这样启动<code>mysql</code>(注意<code>--name</code>参数)：</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run -e MYSQL_ROOT_PASSWORD=password --name=mysql -d mysql</span><br></pre></td></tr></table></figure><p>然后我们的需要访问<code>mysql</code>的容器这样启动(注意<code>--link</code>参数)</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run --name=my_container --link mysql:mysql my/my_image</span><br></pre></td></tr></table></figure><p>这样，在我们新启动的容器<code>my_container</code>里就能够以域名<code>mysql</code>来访问<code>mysql</code>容器了。</p><p>可现在的情况是，作为一个P2P的程序，我们要启动两个容器(至少两个)<code>container_a</code>和<code>container_b</code>。希望<code>container_a</code>能访问<code>container_b</code>，并且<code>container_b</code>可以访问<code>container_a</code>，用跟上边同样的思路我们会想到这样启动</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run --name=container_a --link container_b:container_b -d my/my_image</span><br><span class="line">docker run --name=container_b --link container_a:container_a -d my/my_image</span><br></pre></td></tr></table></figure><p>但是问题来了，当我们执行第一句命令时，<code>docker</code>会告诉我们，<code>container_b</code>不存在，可不是么，<code>container_b</code>此时还没有启动，当然是不存在的。这就造成了一种困境，<code>container_a</code>和<code>container_b</code>两者是相互依赖的，二者无论先启动谁，都要求先启动另一者，这种方式根本解决不了这个问题。</p><p>那么这种容器互相连接的问题怎么解决呢？就要轮到本文重点<code>docker network create</code>登场了。</p><p>首先我们先创建一个<code>network</code></p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker network create my-net</span><br></pre></td></tr></table></figure><p>通过执行命令可以查看到我们创建的网络</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker network ls</span><br></pre></td></tr></table></figure><p>结果应该类似下面这样</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cbd1aa22d04a        bridge              bridge              local</span><br><span class="line">33be010f6cd9        host                host                local</span><br><span class="line">628c2540d5d3        my-net              bridge              local</span><br></pre></td></tr></table></figure><p>我们看到<code>my-net</code>在这个列表中，然后我们就要利用这个新建的<code>my-net</code>网络来启动我们的容器。</p><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run --net=my-net --net-alias=container_a --name=container_a -d my/my_image</span><br><span class="line">docker run --net=my-net --net-alias=container_b --name=container_b -d my/my_image</span><br></pre></td></tr></table></figure><p>我们通过<code>--net</code>参数指定容器使用的网络，通过<code>--net-alias</code>指定容器在这个网络中的别名，这样在这个网络中的所有的容器就都可以通过这个别名作为域名来访问到该容器了。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 泛技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 技术 </tag>
+            
+            <tag> docker </tag>
             
         </tags>
       
